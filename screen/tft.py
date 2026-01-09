@@ -25,6 +25,8 @@ class TFT:
         self.handle = gpio_handle
         self.width = config.DISPLAY_WIDTH
         self.height = config.DISPLAY_HEIGHT
+        self.offset_x = config.DISPLAY_OFFSET_X
+        self.offset_y = config.DISPLAY_OFFSET_Y
         
         # Configure GPIO pins
         lgpio.gpio_claim_output(self.handle, config.GPIO_DC)
@@ -90,6 +92,10 @@ class TFT:
         self._write_command(config.ST7789_MADCTL)
         self._write_data(config.DISPLAY_ROTATION)  # Default orientation
         
+        # Invert display colors (fix inverted colors issue)
+        self._write_command(config.ST7789_INVON)
+        time.sleep(0.01)
+        
         # Normal display mode
         self._write_command(config.ST7789_NORON)
         time.sleep(0.01)
@@ -106,6 +112,12 @@ class TFT:
             x0, y0: Start coordinates
             x1, y1: End coordinates
         """
+        # Apply display offsets
+        x0 += self.offset_x
+        x1 += self.offset_x
+        y0 += self.offset_y
+        y1 += self.offset_y
+        
         # Column address set
         self._write_command(config.ST7789_CASET)
         self._write_data([x0 >> 8, x0 & 0xFF, x1 >> 8, x1 & 0xFF])
