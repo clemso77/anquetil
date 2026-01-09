@@ -165,8 +165,16 @@ GPIO_BUTTON = 17    # Button
 ```python
 DISPLAY_WIDTH = 240
 DISPLAY_HEIGHT = 280
-DISPLAY_ROTATION = 0  # 0, 90, 180, or 270 degrees
+DISPLAY_ROTATION = 0xC0  # MADCTL value: 0xC0 for 180°, 0x00 for 0°, 0x60 for 90°, 0xA0 for 270°
+DISPLAY_OFFSET_X = 0     # X offset (usually 0 for 240-width panels)
+DISPLAY_OFFSET_Y = 20    # Y offset (try 0, 20, or 40 to eliminate display artifacts)
 ```
+
+**Note on Display Offsets:**
+Different ST7789 panels may have different internal addressing. If you see a pixelated bar or artifacts at the edge of the screen (especially after rotation), try adjusting the offsets:
+- For 180° rotation with artifacts at the bottom: try `DISPLAY_OFFSET_Y` values of 0, 20, or 40
+- For 0° rotation: usually both offsets are 0
+- The correct value depends on your specific panel manufacturer
 
 ### Button Timing
 ```python
@@ -239,6 +247,24 @@ sudo usermod -a -G gpio,spi $USER
 - Check all physical connections
 - Verify GPIO pin numbers match your wiring
 - Try a slower SPI speed in `config.py`: `SPI_SPEED = 10000000`
+
+### Pixelated Bar or Artifacts on Display
+If you see a pixelated bar or artifacts at the edge of the screen (especially at the bottom with 180° rotation):
+
+1. **Adjust the Y offset** in `config.py`:
+   ```python
+   DISPLAY_OFFSET_Y = 20  # Try values: 0, 20, or 40
+   ```
+   
+2. **Test different values**:
+   - Start with `DISPLAY_OFFSET_Y = 0` (default for most panels)
+   - If you see artifacts at the bottom, try `DISPLAY_OFFSET_Y = 20`
+   - If artifacts persist, try `DISPLAY_OFFSET_Y = 40`
+   
+3. **Why this happens**: Different ST7789 panel manufacturers use different internal addressing schemes. Some 240x280 panels are built on 240x320 driver ICs with only 280 rows physically wired. The offset compensates for this difference.
+
+4. **Restart** the application after changing the offset value.
+
 
 ### Button Not Responding
 - Verify button is connected between GPIO 17 and GND
