@@ -55,7 +55,7 @@ class TextPage(Page):
         # Try to use a default font, fallback to bitmap font if not available
         try:
             font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 24)
-        except:
+        except (IOError, OSError):
             font = ImageFont.load_default()
         
         # Draw text centered
@@ -118,7 +118,7 @@ class StatusPage(Page):
         try:
             font_large = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 32)
             font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 18)
-        except:
+        except (IOError, OSError):
             font_large = ImageFont.load_default()
             font_small = ImageFont.load_default()
         
