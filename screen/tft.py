@@ -88,7 +88,7 @@ class TFT:
         
         # Memory data access control (rotation)
         self._write_command(config.ST7789_MADCTL)
-        self._write_data(0x00)  # Default orientation
+        self._write_data(config.DISPLAY_ROTATION)  # Default orientation
         
         # Normal display mode
         self._write_command(config.ST7789_NORON)

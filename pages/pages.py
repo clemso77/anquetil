@@ -182,10 +182,10 @@ class BusPage:
         """
         w, h = config.DISPLAY_WIDTH, config.DISPLAY_HEIGHT  # 240 x 280
 
-        # --- Background (light gradient)
+        # --- Background (light gradient) - darker at top, lighter at bottom
         img = Image.new("RGB", (w, h), (245, 246, 250))
         draw = ImageDraw.Draw(img)
-        draw_vertical_gradient(draw, w, h, top=(250, 250, 252), bottom=(236, 238, 244))
+        draw_vertical_gradient(draw, w, h, top=(236, 238, 244), bottom=(250, 250, 252))
 
         # --- Header (larger, centered both horizontally and vertically)
         header_y = 14
@@ -286,10 +286,10 @@ class BusPage:
 
         cards = [(y1_card1, y2_card1), (y1_card2, y2_card2)]
 
-        # Card colors (yellow + green accents, darker cards)
+        # Card colors (different base colors for each card)
         palettes = [
-            {"card": (34, 34, 46), "bar": (255, 200, 60), "text": (255, 255, 255)},  # yellow
-            {"card": (34, 34, 46), "bar": (80, 220, 140), "text": (255, 255, 255)},  # green
+            {"card": (46, 42, 34), "bar": (255, 200, 60), "text": (255, 255, 255)},  # warm dark (yellowish tint)
+            {"card": (34, 46, 42), "bar": (80, 220, 140), "text": (255, 255, 255)},  # cool dark (greenish tint)
         ]
 
         # Handle different states
@@ -366,12 +366,31 @@ class BusPage:
                     draw.text((x, y), wait_txt, fill=text_color, font=self.font_huge)
 
                     # Draw "min" label below, centered
-                    min_txt = "minutes"
-                    bbox2 = draw.textbbox((0, 0), min_txt, font=self.font_small)
+                    min_txt = "min"
+                    bbox2 = draw.textbbox((0, 0), min_txt, font=self.font_medium)
                     min_w = bbox2[2] - bbox2[0]
                     min_x = left + (right - left - min_w) // 2
-                    min_y = y + th + 2
-                    draw.text((min_x, min_y), min_txt, fill=text_color, font=self.font_small)
+                    min_y = y + th
+                    draw.text((min_x, min_y), min_txt, fill=text_color, font=self.font_medium)
+                    
+                    # Draw status label (waiting status) if present
+                    if status:
+                        status_text = ""
+                        if self._is_on_time(status):
+                            status_text = "À l'heure"
+                        elif self._is_problem_status(status):
+                            if status.lower() == "delayed":
+                                status_text = "En retard"
+                            else:
+                                status_text = "Aucun signal"
+                        else:
+                            status_text = "En attente"
+                        
+                        bbox3 = draw.textbbox((0, 0), status_text, font=self.font_tiny)
+                        status_w = bbox3[2] - bbox3[0]
+                        status_x = left + (right - left - status_w) // 2
+                        status_y = min_y + 18
+                        draw.text((status_x, status_y), status_text, fill=text_color, font=self.font_tiny)
 
                 else:
                     # No data for this slot
