@@ -93,19 +93,21 @@ class BusPage:
         # Bus frames cache
         self._bus_frames: Optional[List[Image.Image]] = None
 
-        # Fonts - with enhanced header font
+        # Fonts - with MUCH larger wait time font
         try:
-            self.font_title = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 28)  # Larger header
+            self.font_title = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 28)
+            self.font_huge = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 72)  # HUGE for wait time
             self.font_big = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 34)
+            self.font_medium = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 20)
             self.font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 16)
             self.font_tiny = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12)
-            self.font_status = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 11)  # Status badge
         except (IOError, OSError):
             self.font_title = ImageFont.load_default()
+            self.font_huge = ImageFont.load_default()
             self.font_big = ImageFont.load_default()
+            self.font_medium = ImageFont.load_default()
             self.font_small = ImageFont.load_default()
             self.font_tiny = ImageFont.load_default()
-            self.font_status = ImageFont.load_default()
 
     def _get_bus_frames(self) -> List[Image.Image]:
         """Get cached bus frames, loading if necessary."""
@@ -113,9 +115,23 @@ class BusPage:
             self._bus_frames = load_bus_frames(self.bus_image_path)
         return self._bus_frames
 
+    def _is_on_time(self, status: str) -> bool:
+        """
+        Check if status represents on-time departure.
+        
+        Args:
+            status: Status string from API (e.g., 'onTime', 'delayed', 'NO_REPORT')
+            
+        Returns:
+            bool: True if status is "onTime"
+        """
+        if not status:
+            return False
+        return status.lower() == "ontime"
+
     def _is_problem_status(self, status: str) -> bool:
         """
-        Check if a status represents a problem.
+        Check if a status represents a problem (delayed or no report).
         
         Args:
             status: Status string from API (e.g., 'delayed', 'NO_REPORT', 'onTime')
@@ -125,8 +141,8 @@ class BusPage:
         """
         if not status:
             return False
-        status_upper = status.upper()
-        return status_upper in ("DELAYED", "NO_REPORT")
+        status_lower = status.lower()
+        return status_lower in ("delayed", "no_report", "noreport")
 
     def _format_last_update(self) -> str:
         """
@@ -310,64 +326,52 @@ class BusPage:
             for i, (y1, y2) in enumerate(cards):
                 pal = palettes[i]
 
-                draw.rounded_rectangle([left, y1, right, y2], radius=16, fill=pal["card"])
-                draw.rounded_rectangle([left, y1, left + 10, y2], radius=16, fill=pal["bar"])
+                # Determine card background color based on status
+                if i < len(items):
+                    status = items[i].get("status", "")
+                    if self._is_on_time(status):
+                        card_color = (20, 80, 40)  # Dark green for on-time
+                        bar_color = (80, 220, 140)  # Bright green bar
+                        text_color = (80, 220, 140)  # Green text
+                    elif self._is_problem_status(status):
+                        card_color = (80, 30, 30)  # Dark red for problems
+                        bar_color = (255, 100, 100)  # Bright red bar
+                        text_color = (255, 100, 100)  # Red text
+                    else:
+                        card_color = pal["card"]
+                        bar_color = pal["bar"]
+                        text_color = pal["text"]
+                else:
+                    card_color = pal["card"]
+                    bar_color = pal["bar"]
+                    text_color = pal["text"]
+
+                draw.rounded_rectangle([left, y1, right, y2], radius=16, fill=card_color)
+                draw.rounded_rectangle([left, y1, left + 10, y2], radius=16, fill=bar_color)
 
                 if i < len(items):
                     wait = int(items[i].get("wait_minutes", 0))
                     status = items[i].get("status", "")
 
-                    # Draw wait time
+                    # Draw wait time - MUCH LARGER, centered
                     wait_txt = f"{wait}"
-                    bbox = draw.textbbox((0, 0), wait_txt, font=self.font_big)
+                    bbox = draw.textbbox((0, 0), wait_txt, font=self.font_huge)
                     tw = bbox[2] - bbox[0]
                     th = bbox[3] - bbox[1]
-                    x = left + 18
-                    y = y1 + (card_h - th) // 2 - 2
+                    
+                    # Center the wait time in the card
+                    x = left + (right - left - tw) // 2
+                    y = y1 + (card_h - th) // 2 - 4
 
-                    draw.text((x, y), wait_txt, fill=pal["text"], font=self.font_big)
+                    draw.text((x, y), wait_txt, fill=text_color, font=self.font_huge)
 
-                    # Draw "min" label
-                    min_txt = "min"
+                    # Draw "min" label below, centered
+                    min_txt = "minutes"
                     bbox2 = draw.textbbox((0, 0), min_txt, font=self.font_small)
-                    min_x = x + tw + 8
-                    min_y = y + th - (bbox2[3] - bbox2[1]) - 2
-                    draw.text((min_x, min_y), min_txt, fill=pal["text"], font=self.font_small)
-
-                    # Draw status badge if present
-                    if status:
-                        is_problem = self._is_problem_status(status)
-                        
-                        if is_problem:
-                            # Problem status: red/orange with warning icon
-                            status_text = "⚠️ Problème"
-                            badge_bg = (220, 60, 60)  # Red background
-                            badge_text_color = (255, 255, 255)
-                        else:
-                            # Normal status: discrete gray
-                            status_text = status
-                            badge_bg = (60, 60, 70)  # Dark gray background
-                            badge_text_color = (150, 150, 160)  # Light gray text
-                        
-                        # Position badge on the right side of the card
-                        status_bbox = draw.textbbox((0, 0), status_text, font=self.font_status)
-                        status_w = status_bbox[2] - status_bbox[0] + 12  # Add padding
-                        status_h = status_bbox[3] - status_bbox[1] + 8
-                        
-                        badge_x = right - status_w - 12
-                        badge_y = y1 + (card_h - status_h) // 2
-                        
-                        # Draw badge background
-                        draw.rounded_rectangle(
-                            [badge_x, badge_y, badge_x + status_w, badge_y + status_h],
-                            radius=6,
-                            fill=badge_bg
-                        )
-                        
-                        # Draw badge text
-                        text_x = badge_x + 6
-                        text_y = badge_y + 4
-                        draw.text((text_x, text_y), status_text, fill=badge_text_color, font=self.font_status)
+                    min_w = bbox2[2] - bbox2[0]
+                    min_x = left + (right - left - min_w) // 2
+                    min_y = y + th + 2
+                    draw.text((min_x, min_y), min_txt, fill=text_color, font=self.font_small)
 
                 else:
                     # No data for this slot

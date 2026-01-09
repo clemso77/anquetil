@@ -41,19 +41,7 @@ class APIService:
             dt = dt.replace(tzinfo=timezone.utc)
         return dt.astimezone(timezone.utc)
 
-    def _calculate_wait_minutes(self, dt: datetime) -> int:
-        """
-        Calculate minutes until the given datetime.
-        
-        Args:
-            dt: Target datetime in UTC
-            
-        Returns:
-            int: Minutes until target time (minimum 0)
-        """
-        now = datetime.now(timezone.utc)
-        seconds = (dt - now).total_seconds()
-        return max(0, int((seconds + 59) // 60))
+
 
     def cancel_current_request(self):
         """
@@ -79,8 +67,7 @@ class APIService:
             
         Returns:
             List of dictionaries containing:
-                - expected_departure_utc: ISO format departure time
-                - wait_minutes: Minutes until departure
+                - expected_departure_utc: ISO format departure time (UTC)
                 - line_ref: Bus line reference
                 - destination_ref: Destination reference
                 - status: Departure status
@@ -110,17 +97,12 @@ class APIService:
                 timeout=timeout,
             )
             response.raise_for_status()
-            print("[DEBUG] URL:", response.url)
-            print("[DEBUG] Status:", response.status_code)
-            print("[DEBUG] Content-Type:", response.headers.get("Content-Type"))
-            print("[DEBUG] Content-Encoding:", response.headers.get("Content-Encoding"))
             
             # Check if cancellation was requested
             if self._cancel_requested:
                 return []
             
             data = response.json()
-            print("[DEBUG] Top-level keys:", list(data.keys())[:10])
             deliveries = data.get("Siri", {}).get("ServiceDelivery", {}).get("StopMonitoringDelivery", [])
             results = []
 
@@ -139,7 +121,6 @@ class APIService:
                     dt = self._parse_datetime(ts)
                     results.append({
                         "expected_departure_utc": dt.isoformat(),
-                        "wait_minutes": self._calculate_wait_minutes(dt),
                         "line_ref": (mvj.get("LineRef") or {}).get("value"),
                         "destination_ref": (mvj.get("DestinationRef") or {}).get("value"),
                         "status": call.get("DepartureStatus"),
@@ -147,7 +128,6 @@ class APIService:
 
             print(results)
             results.sort(key=lambda x: x["expected_departure_utc"])
-            print(results)
             return results[:limit]
 
         except requests.Timeout:

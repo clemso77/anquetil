@@ -3,19 +3,21 @@
 Main application for Raspberry Pi TFT Display
 
 Displays a single animated page (dancing bus + 2 next departures)
-on an ST7789 screen with a button (short: refresh, long: backlight).
+on an ST7789 screen with a button (short: refresh, long: dimming).
 
 Refactored architecture:
 - Network calls are in services/api_service.py
 - Auto-refresh managed by services/refresh_manager.py (80s interval)
 - Data state managed by services/data_manager.py
 - Main only handles display and button events
+- Wait times calculated dynamically from UTC on every render
 """
 
 import sys
 import time
 import signal
 import lgpio
+from PIL import Image
 
 # Import configuration
 import config
@@ -52,6 +54,10 @@ class Application:
         self.backlight = None
         self.button = None
         self.page = None
+        
+        # Dimming overlay state
+        self.dimming_active = False
+        self.dimming_opacity = 0.92  # High opacity for strong dimming effect
         
         # Stop point reference for bus data
         self.stop_point_ref = config.BUS_ID
@@ -143,7 +149,7 @@ class Application:
 
             print("Initialization complete!")
             print("Short press: Manual refresh")
-            print("Long press: Toggle backlight")
+            print("Long press: Toggle screen dimming")
             print("Press Ctrl+C to exit")
 
         except Exception as e:
@@ -169,13 +175,17 @@ class Application:
         self._update_display(force=True)
 
     def _on_long_press(self):
-        """Long press: toggle backlight."""
-        print("Long press detected - toggling backlight")
-        self.backlight.toggle()
+        """Long press: toggle dimming overlay (simulates screen dimming)."""
+        self.dimming_active = not self.dimming_active
+        status = "ON" if self.dimming_active else "OFF"
+        print(f"Long press detected - dimming overlay {status}")
+        
+        # Force display update to show/hide overlay immediately
+        self._update_display(force=True)
 
     def _update_display(self, force: bool = False):
         """
-        Render and display the page.
+        Render and display the page with optional dimming overlay.
         
         Args:
             force: If True, bypass FPS throttling
@@ -192,7 +202,18 @@ class Application:
         self.last_frame_ts = now
 
         try:
+            # Render base page
             image = self.page.render()
+            
+            # Apply dimming overlay if active
+            if self.dimming_active:
+                # Create semi-transparent black overlay
+                overlay = Image.new("RGBA", image.size, (0, 0, 0, int(255 * self.dimming_opacity)))
+                # Convert base image to RGBA and composite with overlay
+                image_rgba = image.convert("RGBA")
+                dimmed = Image.alpha_composite(image_rgba, overlay)
+                image = dimmed.convert("RGB")
+            
             self.tft.display_image(image)
         except Exception as e:
             print(f"Error updating display: {e}")

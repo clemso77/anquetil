@@ -3,11 +3,13 @@ Data Manager Module
 
 Centralizes data state management with proper state tracking.
 Manages loading, success, error, and idle states.
+Stores UTC timestamps and calculates wait times dynamically.
 """
 
 from enum import Enum
 from typing import List, Dict, Any, Optional, Callable
-from datetime import datetime
+from datetime import datetime, timezone
+from dateutil import parser as dtparser
 import threading
 
 
@@ -133,28 +135,56 @@ class DataManager:
         with self._lock:
             return len(self._data) > 0
 
+    def _calculate_wait_minutes(self, utc_iso_string: str) -> int:
+        """
+        Calculate minutes until departure from UTC ISO timestamp.
+        This is called dynamically on every render to ensure accurate display.
+        
+        Args:
+            utc_iso_string: ISO format UTC timestamp
+            
+        Returns:
+            int: Minutes until departure (minimum 0)
+        """
+        try:
+            dt = dtparser.isoparse(utc_iso_string)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            else:
+                dt = dt.astimezone(timezone.utc)
+            
+            now = datetime.now(timezone.utc)
+            seconds = (dt - now).total_seconds()
+            return max(0, int((seconds + 59) // 60))
+        except Exception:
+            return 0
+
     def get_formatted_items(self, limit: int = 2) -> List[Dict[str, Any]]:
         """
         Get formatted data items ready for display.
+        Calculates wait_minutes dynamically from UTC timestamps on EVERY call.
         
         Args:
             limit: Maximum number of items to return
             
         Returns:
             List of formatted dictionaries with:
-                - wait_minutes: Minutes until departure
+                - wait_minutes: Minutes until departure (calculated dynamically)
                 - destination: Destination name
                 - line: Line identifier
                 - status: Departure status (e.g., 'onTime', 'delayed', 'NO_REPORT')
+                - expected_departure_utc: Original UTC timestamp
         """
         with self._lock:
             items = []
             for item in self._data[:limit]:
+                utc_time = item.get("expected_departure_utc", "")
                 items.append({
-                    "wait_minutes": int(item.get("wait_minutes", 0)),
+                    "wait_minutes": self._calculate_wait_minutes(utc_time),
                     "destination": item.get("destination") or item.get("destination_ref") or "",
                     "line": item.get("line") or item.get("line_ref") or "",
                     "status": item.get("status") or "",
+                    "expected_departure_utc": utc_time,
                 })
             return items
 
