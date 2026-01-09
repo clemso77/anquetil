@@ -288,7 +288,7 @@ def main():
     try:
         import lgpio  # noqa
         import spidev  # noqa
-        from PIL import Image  # noqa
+        # PIL Image already imported at module level
     except ImportError as e:
         print("Error: Required system packages not installed")
         print("Please install: python3-lgpio python3-spidev python3-pil")

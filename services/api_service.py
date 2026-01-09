@@ -111,7 +111,6 @@ class APIService:
                         "status": call.get("DepartureStatus"),
                     })
 
-            print(results)
             results.sort(key=lambda x: x["expected_departure_utc"])
             return results[:limit]
 

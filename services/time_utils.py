@@ -43,5 +43,6 @@ def calculate_wait_minutes(utc_iso_string: str) -> int:
         now = datetime.now(timezone.utc)
         seconds = (dt - now).total_seconds()
         return max(0, int((seconds + 59) // 60))
-    except Exception:
+    except (ValueError, TypeError, AttributeError):
+        # Return 0 if parsing fails or invalid data
         return 0
