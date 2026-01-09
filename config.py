@@ -17,7 +17,9 @@ SPI_SPEED = 40000000  # 40MHz SPI clock speed
 # Display Configuration
 DISPLAY_WIDTH = 240
 DISPLAY_HEIGHT = 280
-DISPLAY_ROTATION = 0  # 0, 90, 180, or 270 degrees
+DISPLAY_ROTATION = 0xC0  # MADCTL value: 0xC0 for 180° rotation (MY=1, MX=1)
+DISPLAY_OFFSET_X = 0  # X offset for display window
+DISPLAY_OFFSET_Y = 0  # Y offset for display window
 
 # ST7789 Commands
 ST7789_NOP = 0x00

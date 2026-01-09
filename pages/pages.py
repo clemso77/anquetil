@@ -93,21 +93,12 @@ class BusPage:
         # Bus frames cache
         self._bus_frames: Optional[List[Image.Image]] = None
 
-        # Fonts - with MUCH larger wait time font
-        try:
-            self.font_title = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 28)
-            self.font_huge = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 72)  # HUGE for wait time
-            self.font_big = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 34)
-            self.font_medium = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 20)
-            self.font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 16)
-            self.font_tiny = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12)
-        except (IOError, OSError):
-            self.font_title = ImageFont.load_default()
-            self.font_huge = ImageFont.load_default()
-            self.font_big = ImageFont.load_default()
-            self.font_medium = ImageFont.load_default()
-            self.font_small = ImageFont.load_default()
-            self.font_tiny = ImageFont.load_default()
+        self.font_title = ImageFont.load_default(18)
+        self.font_huge = ImageFont.load_default(50)
+        self.font_big = ImageFont.load_default(30)
+        self.font_medium = ImageFont.load_default(18)
+        self.font_small = ImageFont.load_default(16)
+        self.font_tiny = ImageFont.load_default(12)
 
     def _get_bus_frames(self) -> List[Image.Image]:
         """Get cached bus frames, loading if necessary."""
@@ -182,16 +173,10 @@ class BusPage:
         """
         w, h = config.DISPLAY_WIDTH, config.DISPLAY_HEIGHT  # 240 x 280
 
-        # --- Background (light gradient) - darker at top, lighter at bottom
-        img = Image.new("RGB", (w, h), (245, 246, 250))
+        img = Image.new("RGB", (w, h), (255, 255, 255))
         draw = ImageDraw.Draw(img)
-        draw_vertical_gradient(draw, w, h, top=(236, 238, 244), bottom=(250, 250, 252))
-
-        # --- Header (larger, centered both horizontally and vertically)
-        header_y = 14
-        header_h = 52  # Increased height for larger text
-        draw.rounded_rectangle([10, header_y, w - 10, header_y + header_h], radius=14, fill=(255, 255, 255))
-        
+        header_y=10
+        header_h=50        
         # Calculate centered position for header text
         header_text = self.title
         bbox = draw.textbbox((0, 0), header_text, font=self.font_title)
@@ -242,19 +227,12 @@ class BusPage:
         bus_rot = bus_scaled.rotate(tilt, resample=Image.Resampling.BICUBIC, expand=True)
 
         # --- Bus position (moved up with negative margin effect)
-        bus_area_top = header_y + header_h - 5  # Moved up by reducing gap after header
+        bus_area_top = header_y + header_h + 5
         bus_area_bottom = h - 2 * 68 - 22  
         bus_area_h = max(60, bus_area_bottom - bus_area_top)
 
         bus_x = (w - bus_rot.width) // 2 + sway
         bus_y = bus_area_top + (bus_area_h - bus_rot.height) // 2 + bounce - 12  # Additional upward adjustment
-
-        # Shadow under bus (light gray, not black)
-        shadow_w = int(target_w * 0.72)
-        shadow_h = 14
-        shadow_x = (w - shadow_w) // 2
-        shadow_y = min(h - 162, bus_y + bus_rot.height + 6)
-        draw.ellipse([shadow_x, shadow_y, shadow_x + shadow_w, shadow_y + shadow_h], fill=(210, 214, 224))
 
         # Alpha composite
         base = img.convert("RGBA")
@@ -286,10 +264,9 @@ class BusPage:
 
         cards = [(y1_card1, y2_card1), (y1_card2, y2_card2)]
 
-        # Card colors (different base colors for each card)
         palettes = [
             {"card": (46, 42, 34), "bar": (255, 200, 60), "text": (255, 255, 255)},  # warm dark (yellowish tint)
-            {"card": (34, 46, 42), "bar": (80, 220, 140), "text": (255, 255, 255)},  # cool dark (greenish tint)
+            {"card": (46, 42, 34), "bar": (74, 202, 212), "text": (255, 255, 255)},  # cool dark (greenish tint)
         ]
 
         # Handle different states
@@ -322,62 +299,74 @@ class BusPage:
                     draw.text((left + 18, y1 + 22), "No data", fill=(160, 160, 170), font=self.font_small)
         
         else:
-            # Display data cards
+            # Display data cards (fixed background per card, status affects only text + status label color)
+            PAD_X = 18
+            RIGHT_PAD = 14
+            GAP_MIN = 6
+
             for i, (y1, y2) in enumerate(cards):
                 pal = palettes[i]
 
-                # Determine card background color based on status
-                if i < len(items):
-                    status = items[i].get("status", "")
-                    if self._is_on_time(status):
-                        card_color = (20, 80, 40)  # Dark green for on-time
-                        bar_color = (80, 220, 140)  # Bright green bar
-                        text_color = (80, 220, 140)  # Green text
-                    elif self._is_problem_status(status):
-                        card_color = (80, 30, 30)  # Dark red for problems
-                        bar_color = (255, 100, 100)  # Bright red bar
-                        text_color = (255, 100, 100)  # Red text
-                    else:
-                        card_color = pal["card"]
-                        bar_color = pal["bar"]
-                        text_color = pal["text"]
-                else:
-                    card_color = pal["card"]
-                    bar_color = pal["bar"]
-                    text_color = pal["text"]
+                # Fixed card colors (different per card) — NOT driven by status anymore
+                card_color = pal["card"]
+                bar_color = pal["bar"]
+                base_text_color = pal["text"]
 
+                # Default (neutral)
+                accent_color = base_text_color
+                status_color = base_text_color
+
+                status = ""
+                if i < len(items):
+                    status = (items[i].get("status") or "").strip()
+
+                    # Only colors change with status (not the card background)
+                    if self._is_on_time(status):
+                        accent_color = (80, 220, 140)   # green
+                        status_color = (80, 220, 140)
+                    elif self._is_problem_status(status):
+                        accent_color = (255, 100, 100)  # red
+                        status_color = (255, 100, 100)
+                    else:
+                        accent_color = base_text_color
+                        status_color = base_text_color
+
+                # Draw card
                 draw.rounded_rectangle([left, y1, right, y2], radius=16, fill=card_color)
                 draw.rounded_rectangle([left, y1, left + 10, y2], radius=16, fill=bar_color)
 
                 if i < len(items):
                     wait = int(items[i].get("wait_minutes", 0))
-                    status = items[i].get("status", "")
 
-                    # Draw wait time - MUCH LARGER, centered
+                    # --- Wait time on the LEFT, "min" just to its right
                     wait_txt = f"{wait}"
-                    bbox = draw.textbbox((0, 0), wait_txt, font=self.font_huge)
-                    tw = bbox[2] - bbox[0]
-                    th = bbox[3] - bbox[1]
-                    
-                    # Center the wait time in the card
-                    x = left + (right - left - tw) // 2
-                    y = y1 + (card_h - th) // 2 - 4
+                    wait_bbox = draw.textbbox((0, 0), wait_txt, font=self.font_huge)
+                    wait_w = wait_bbox[2] - wait_bbox[0]
+                    wait_h = wait_bbox[3] - wait_bbox[1]
 
-                    draw.text((x, y), wait_txt, fill=text_color, font=self.font_huge)
-
-                    # Draw "min" label below, centered
                     min_txt = "min"
-                    bbox2 = draw.textbbox((0, 0), min_txt, font=self.font_medium)
-                    min_w = bbox2[2] - bbox2[0]
-                    min_x = left + (right - left - min_w) // 2
-                    min_y = y + th
-                    draw.text((min_x, min_y), min_txt, fill=text_color, font=self.font_medium)
-                    
-                    # Draw status label (waiting status) if present
+                    min_bbox = draw.textbbox((0, 0), min_txt, font=self.font_big)
+                    min_w = min_bbox[2] - min_bbox[0]
+                    min_h = min_bbox[3] - min_bbox[1]
+
+                    # Vertical centering
+                    cy = y1 + (card_h // 2)
+
+                    # Position number
+                    wait_x = left + PAD_X
+                    wait_y = cy - (wait_h // 2) - 2
+
+                    # Position "min" on same baseline-ish (slightly lower looks nicer)
+                    min_x = wait_x + wait_w + GAP_MIN
+                    min_y = cy - (min_h // 2) + 4
+
+                    draw.text((wait_x, wait_y), wait_txt, fill=(255, 255, 255), font=self.font_huge)
+                    draw.text((min_x, min_y), min_txt, fill=(255, 255, 255), font=self.font_big)
+
+                    # --- Status label at FAR RIGHT (green if on time)
                     if status:
-                        status_text = ""
                         if self._is_on_time(status):
-                            status_text = "À l'heure"
+                            status_text = "A l'heure"
                         elif self._is_problem_status(status):
                             if status.lower() == "delayed":
                                 status_text = "En retard"
@@ -385,16 +374,20 @@ class BusPage:
                                 status_text = "Aucun signal"
                         else:
                             status_text = "En attente"
-                        
-                        bbox3 = draw.textbbox((0, 0), status_text, font=self.font_tiny)
-                        status_w = bbox3[2] - bbox3[0]
-                        status_x = left + (right - left - status_w) // 2
-                        status_y = min_y + 18
-                        draw.text((status_x, status_y), status_text, fill=text_color, font=self.font_tiny)
+
+                        st_bbox = draw.textbbox((0, 0), status_text, font=self.font_small)
+                        st_w = st_bbox[2] - st_bbox[0]
+                        st_h = st_bbox[3] - st_bbox[1]
+
+                        st_x = right - RIGHT_PAD - st_w
+                        st_y = cy - (st_h // 2)
+
+                        draw.text((st_x, st_y), status_text, fill=status_color, font=self.font_small)
 
                 else:
                     # No data for this slot
-                    draw.text((left + 18, y1 + 18), "--", fill=(120, 120, 130), font=self.font_big)
-                    draw.text((left + 60, y1 + 36), "min", fill=(120, 120, 130), font=self.font_small)
+                    draw.text((left + PAD_X, y1 + 18), "--", fill=(120, 120, 130), font=self.font_big)
+                    draw.text((left + PAD_X + 40, y1 + 22), "min", fill=(120, 120, 130), font=self.font_small)
+
 
         return img
