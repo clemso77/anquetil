@@ -41,3 +41,6 @@ BUTTON_LONG_PRESS_MS = 1000  # Long press threshold in milliseconds
 # Backlight Configuration
 BACKLIGHT_PWM_FREQ = 1000    # PWM frequency in Hz
 BACKLIGHT_DEFAULT_DUTY = 80  # Default brightness (0-100%)
+
+# Data Refresh Configuration
+REFRESH_INTERVAL_SECONDS = 80  # Auto-refresh interval for bus data

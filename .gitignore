@@ -23,3 +23,7 @@ Thumbs.db
 
 # Project specific
 *.log
+
+# Backup files
+*.bak
+*_old.py
