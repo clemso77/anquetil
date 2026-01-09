@@ -96,7 +96,7 @@ class BusPage:
         # Fonts - with MUCH larger wait time font
         try:
             self.font_title = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 28)
-            self.font_huge = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 72)  # HUGE for wait time
+            self.font_huge = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 56)  # HUGE for wait time
             self.font_big = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 34)
             self.font_medium = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 20)
             self.font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 16)
@@ -273,11 +273,11 @@ class BusPage:
         # --- Data cards
         items = self.data_manager.get_formatted_items(limit=2)
 
-        card_h = 66
-        gap = 10
+        card_h = 100  # Increased height for larger wait time display
+        gap = 8
         left = 12
         right = w - 12
-        bottom_margin = 12
+        bottom_margin = 10
 
         y2_card2 = h - bottom_margin
         y1_card2 = y2_card2 - card_h
