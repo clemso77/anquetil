@@ -138,6 +138,9 @@ class BusPage:
             
         Returns:
             bool: True if status is a problem (DELAYED or NO_REPORT)
+            
+        Note:
+            Handles multiple variants: NO_REPORT, no_report, noReport (API inconsistency)
         """
         if not status:
             return False
@@ -366,7 +369,7 @@ class BusPage:
                     draw.text((x, y), wait_txt, fill=text_color, font=self.font_huge)
 
                     # Draw "min" label below, centered
-                    min_txt = "minutes"
+                    min_txt = "min"
                     bbox2 = draw.textbbox((0, 0), min_txt, font=self.font_small)
                     min_w = bbox2[2] - bbox2[0]
                     min_x = left + (right - left - min_w) // 2

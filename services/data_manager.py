@@ -8,9 +8,10 @@ Stores UTC timestamps and calculates wait times dynamically.
 
 from enum import Enum
 from typing import List, Dict, Any, Optional, Callable
-from datetime import datetime, timezone
-from dateutil import parser as dtparser
+from datetime import datetime
 import threading
+
+from .time_utils import calculate_wait_minutes
 
 
 class DataState(Enum):
@@ -135,30 +136,6 @@ class DataManager:
         with self._lock:
             return len(self._data) > 0
 
-    def _calculate_wait_minutes(self, utc_iso_string: str) -> int:
-        """
-        Calculate minutes until departure from UTC ISO timestamp.
-        This is called dynamically on every render to ensure accurate display.
-        
-        Args:
-            utc_iso_string: ISO format UTC timestamp
-            
-        Returns:
-            int: Minutes until departure (minimum 0)
-        """
-        try:
-            dt = dtparser.isoparse(utc_iso_string)
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            else:
-                dt = dt.astimezone(timezone.utc)
-            
-            now = datetime.now(timezone.utc)
-            seconds = (dt - now).total_seconds()
-            return max(0, int((seconds + 59) // 60))
-        except Exception:
-            return 0
-
     def get_formatted_items(self, limit: int = 2) -> List[Dict[str, Any]]:
         """
         Get formatted data items ready for display.
@@ -180,7 +157,7 @@ class DataManager:
             for item in self._data[:limit]:
                 utc_time = item.get("expected_departure_utc", "")
                 items.append({
-                    "wait_minutes": self._calculate_wait_minutes(utc_time),
+                    "wait_minutes": calculate_wait_minutes(utc_time),
                     "destination": item.get("destination") or item.get("destination_ref") or "",
                     "line": item.get("line") or item.get("line_ref") or "",
                     "status": item.get("status") or "",

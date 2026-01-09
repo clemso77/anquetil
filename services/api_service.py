@@ -8,9 +8,9 @@ Handles timeouts, retries, and request cancellation.
 import os
 import threading
 from typing import List, Dict, Any, Optional
-from datetime import datetime, timezone
-from dateutil import parser as dtparser
 import requests
+
+from .time_utils import parse_utc_datetime
 
 
 class APIService:
@@ -25,21 +25,6 @@ class APIService:
         self.base_url = "https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring"
         self._current_request: Optional[threading.Thread] = None
         self._cancel_requested = False
-        
-    def _parse_datetime(self, value: str) -> datetime:
-        """
-        Parse an ISO datetime string to UTC datetime object.
-        
-        Args:
-            value: ISO format datetime string
-            
-        Returns:
-            datetime: UTC datetime object
-        """
-        dt = dtparser.isoparse(value)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        return dt.astimezone(timezone.utc)
 
 
 
@@ -118,7 +103,7 @@ class APIService:
                     if not ts:
                         continue
 
-                    dt = self._parse_datetime(ts)
+                    dt = parse_utc_datetime(ts)
                     results.append({
                         "expected_departure_utc": dt.isoformat(),
                         "line_ref": (mvj.get("LineRef") or {}).get("value"),
