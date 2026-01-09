@@ -71,10 +71,10 @@ class Application:
             self.page = BusPage(
                 stop_point_ref="STIF:StopPoint:Q:29631:",
                 fetch_fn=get_waiting_times,
-                bus_image_path="assets/bus.gif",  # ou .gif si tu veux
+                bus_image_path="assets/bus.gif",
                 title="Prochains bus",
                 fetch_ttl_seconds=80,
-                fps=12,
+                fps=44,
             )
 
             print("Displaying initial frame...")

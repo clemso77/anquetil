@@ -107,15 +107,17 @@ class BusPage:
     def render(self) -> Image.Image:
         w, h = config.DISPLAY_WIDTH, config.DISPLAY_HEIGHT  # 240 x 280
 
-        # --- fond
-        img = Image.new("RGB", (w, h), (8, 10, 18))
+        # --- fond (clair)
+        img = Image.new("RGB", (w, h), (245, 246, 250))
         draw = ImageDraw.Draw(img)
-        draw_vertical_gradient(draw, w, h, top=(16, 24, 48), bottom=(8, 10, 18))
+        # petit gradient très léger
+        draw_vertical_gradient(draw, w, h, top=(250, 250, 252), bottom=(236, 238, 244))
 
-        # --- header compact
-        header_h = 44
-        draw.rounded_rectangle([8, 8, w - 8, 8 + header_h], radius=14, fill=(255, 255, 255))
-        draw.text((16, 16), self.title, fill=(20, 20, 40), font=self.font_title)
+        # --- header (descendu + sobre)
+        header_y = 14  # DESCEND un peu
+        header_h = 42
+        draw.rounded_rectangle([10, header_y, w - 10, header_y + header_h], radius=14, fill=(255, 255, 255))
+        draw.text((18, header_y + 10), self.title, fill=(25, 25, 35), font=self.font_title)
 
         # --- animation time
         t = time.time() - self._start
@@ -125,34 +127,32 @@ class BusPage:
         frame_index = int(t * self.fps) % len(frames)
         bus_src = frames[frame_index]
 
-        # --- taille bus (centré, assez gros)
-        # On vise ~120-140 px de large sur 240px
-        target_w = int(w * 0.58)  # ~139
+        # --- taille bus (centré)
+        target_w = int(w * 0.58)
         ratio = target_w / bus_src.width
         target_h = int(bus_src.height * ratio)
         bus_scaled = bus_src.resize((target_w, target_h), resample=Image.Resampling.LANCZOS)
 
-        # “danse” même si image statique (amplitude ajustée petit écran)
+        # “danse”
         bounce = int(7 * math.sin(t * 4.2))
         tilt = 5 * math.sin(t * 3.6 + 0.5)
         sway = int(5 * math.sin(t * 2.1))
-
         bus_rot = bus_scaled.rotate(tilt, resample=Image.Resampling.BICUBIC, expand=True)
 
-        # --- position bus (centré)
-        bus_area_top = 8 + header_h + 10
-        bus_area_bottom = h - 2 * 70 - 18  # on garde la place pour 2 cartes en bas
+        # --- position bus (DESCENDU)
+        bus_area_top = header_y + header_h + 18
+        bus_area_bottom = h - 2 * 68 - 22  
         bus_area_h = max(60, bus_area_bottom - bus_area_top)
 
         bus_x = (w - bus_rot.width) // 2 + sway
         bus_y = bus_area_top + (bus_area_h - bus_rot.height) // 2 + bounce
 
-        # ombre sous le bus (discrète)
-        shadow_w = int(target_w * 0.75)
+        # ombre sous le bus (gris clair, pas noir)
+        shadow_w = int(target_w * 0.72)
         shadow_h = 14
         shadow_x = (w - shadow_w) // 2
-        shadow_y = min(h - 160, bus_y + bus_rot.height + 6)
-        draw.ellipse([shadow_x, shadow_y, shadow_x + shadow_w, shadow_y + shadow_h], fill=(0, 0, 0))
+        shadow_y = min(h - 162, bus_y + bus_rot.height + 6)
+        draw.ellipse([shadow_x, shadow_y, shadow_x + shadow_w, shadow_y + shadow_h], fill=(210, 214, 224))
 
         # collage alpha
         base = img.convert("RGBA")
@@ -160,14 +160,13 @@ class BusPage:
         img = base.convert("RGB")
         draw = ImageDraw.Draw(img)
 
-        # --- cartes prochains passages (pleine largeur)
         items = self._get_next_items()
 
-        card_h = 64
+        card_h = 66
         gap = 10
-        left = 10
-        right = w - 10
-        bottom_margin = 10
+        left = 12
+        right = w - 12
+        bottom_margin = 12
 
         y2_card2 = h - bottom_margin
         y1_card2 = y2_card2 - card_h
@@ -175,43 +174,38 @@ class BusPage:
         y1_card1 = y2_card1 - card_h
 
         cards = [(y1_card1, y2_card1), (y1_card2, y2_card2)]
+
+        # Couleurs "corrigées" : jaune + vert (accents), cartes plus sombres
         palettes = [
-            {"bar": (60, 180, 255), "accent": (10, 70, 120)},
-            {"bar": (255, 200, 80), "accent": (120, 70, 10)},
+            {"card": (34, 34, 46), "bar": (255, 200, 60), "text": (255, 255, 255)},  # jaune
+            {"card": (34, 34, 46), "bar": (80, 220, 140), "text": (255, 255, 255)},  # vert
         ]
 
         for i, (y1, y2) in enumerate(cards):
             pal = palettes[i]
 
-            # fond carte
-            draw.rounded_rectangle([left, y1, right, y2], radius=16, fill=(255, 255, 255))
-            # barre accent
+            draw.rounded_rectangle([left, y1, right, y2], radius=16, fill=pal["card"])
             draw.rounded_rectangle([left, y1, left + 10, y2], radius=16, fill=pal["bar"])
 
             if i < len(items):
-                wait = items[i].get("wait_minutes", 0)
-                dest = items[i].get("destination", "")
-                line = items[i].get("line", "")
+                wait = int(items[i].get("wait_minutes", 0))
 
-                # gros minutes à gauche
-                wait_txt = f"{wait} min"
-                draw.text((left + 16, y1 + 10), wait_txt, fill=pal["accent"], font=self.font_big)
+                wait_txt = f"{wait}"
+                bbox = draw.textbbox((0, 0), wait_txt, font=self.font_big)
+                tw = bbox[2] - bbox[0]
+                th = bbox[3] - bbox[1]
+                x = left + 18
+                y = y1 + (card_h - th) // 2 - 2
 
-                # ligne/destination à droite (sur 1 ligne)
-                meta = ""
-                if line and dest:
-                    meta = f"{line} → {dest}"
-                elif dest:
-                    meta = dest
-                elif line:
-                    meta = str(line)
-                else:
-                    meta = "Prochain passage"
+                draw.text((x, y), wait_txt, fill=pal["text"], font=self.font_big)
 
-                # petit texte sous les minutes
-                draw.text((left + 16, y1 + 42), meta[:30], fill=(40, 40, 60), font=self.font_small)
+                min_txt = "min"
+                bbox2 = draw.textbbox((0, 0), min_txt, font=self.font_small)
+                draw.text((x + tw + 8, y + th - (bbox2[3] - bbox2[1]) - 2), min_txt, fill=pal["text"], font=self.font_small)
+
             else:
-                draw.text((left + 16, y1 + 10), "-- min", fill=(120, 120, 130), font=self.font_big)
-                draw.text((left + 16, y1 + 42), "Données indisponibles", fill=(120, 120, 130), font=self.font_small)
+                # fallback
+                draw.text((left + 18, y1 + 18), "--", fill=(220, 220, 230), font=self.font_big)
+                draw.text((left + 60, y1 + 36), "min", fill=(220, 220, 230), font=self.font_small)
 
         return img
