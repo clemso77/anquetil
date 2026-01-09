@@ -145,6 +145,7 @@ class DataManager:
                 - wait_minutes: Minutes until departure
                 - destination: Destination name
                 - line: Line identifier
+                - status: Departure status (e.g., 'onTime', 'delayed', 'NO_REPORT')
         """
         with self._lock:
             items = []
@@ -153,6 +154,7 @@ class DataManager:
                     "wait_minutes": int(item.get("wait_minutes", 0)),
                     "destination": item.get("destination") or item.get("destination_ref") or "",
                     "line": item.get("line") or item.get("line_ref") or "",
+                    "status": item.get("status") or "",
                 })
             return items
 
