@@ -18,8 +18,12 @@ SPI_SPEED = 40000000  # 40MHz SPI clock speed
 DISPLAY_WIDTH = 240
 DISPLAY_HEIGHT = 280
 DISPLAY_ROTATION = 0xC0  # MADCTL value: 0xC0 for 180° rotation (MY=1, MX=1)
+# Display offsets compensate for panel internal addressing
+# Common values for 240x280 ST7789 with 180° rotation:
+# - Try Y=0 first, then Y=20, then Y=40 if you see a pixelated bar
+# - X offset usually stays at 0 for 240-width panels
 DISPLAY_OFFSET_X = 0  # X offset for display window
-DISPLAY_OFFSET_Y = 40  # Y offset for display window (adjusted for 180° rotation to avoid bottom bar)
+DISPLAY_OFFSET_Y = 20  # Y offset for display window (try 0, 20, or 40)
 
 # ST7789 Commands
 ST7789_NOP = 0x00
