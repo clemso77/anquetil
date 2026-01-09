@@ -54,8 +54,7 @@ class Application:
         self.page = None
         
         # Stop point reference for bus data
-        self.stop_point_ref = "STIF:StopPoint:Q:29631:"
-
+        self.stop_point_ref = config.BUS_ID
         # Services
         self.api_service = get_api_service()
         self.data_manager = get_data_manager()

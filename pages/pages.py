@@ -93,23 +93,40 @@ class BusPage:
         # Bus frames cache
         self._bus_frames: Optional[List[Image.Image]] = None
 
-        # Fonts
+        # Fonts - with enhanced header font
         try:
-            self.font_title = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 22)
+            self.font_title = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 28)  # Larger header
             self.font_big = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 34)
             self.font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 16)
             self.font_tiny = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12)
+            self.font_status = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 11)  # Status badge
         except (IOError, OSError):
             self.font_title = ImageFont.load_default()
             self.font_big = ImageFont.load_default()
             self.font_small = ImageFont.load_default()
             self.font_tiny = ImageFont.load_default()
+            self.font_status = ImageFont.load_default()
 
     def _get_bus_frames(self) -> List[Image.Image]:
         """Get cached bus frames, loading if necessary."""
         if self._bus_frames is None:
             self._bus_frames = load_bus_frames(self.bus_image_path)
         return self._bus_frames
+
+    def _is_problem_status(self, status: str) -> bool:
+        """
+        Check if a status represents a problem.
+        
+        Args:
+            status: Status string from API (e.g., 'delayed', 'NO_REPORT', 'onTime')
+            
+        Returns:
+            bool: True if status is a problem (DELAYED or NO_REPORT)
+        """
+        if not status:
+            return False
+        status_upper = status.upper()
+        return status_upper in ("DELAYED", "NO_REPORT")
 
     def _format_last_update(self) -> str:
         """
@@ -154,18 +171,27 @@ class BusPage:
         draw = ImageDraw.Draw(img)
         draw_vertical_gradient(draw, w, h, top=(250, 250, 252), bottom=(236, 238, 244))
 
-        # --- Header (with status indicator)
+        # --- Header (larger, centered both horizontally and vertically)
         header_y = 14
-        header_h = 42
+        header_h = 52  # Increased height for larger text
         draw.rounded_rectangle([10, header_y, w - 10, header_y + header_h], radius=14, fill=(255, 255, 255))
-        draw.text((18, header_y + 10), self.title, fill=(25, 25, 35), font=self.font_title)
+        
+        # Calculate centered position for header text
+        header_text = self.title
+        bbox = draw.textbbox((0, 0), header_text, font=self.font_title)
+        text_w = bbox[2] - bbox[0]
+        text_h = bbox[3] - bbox[1]
+        text_x = (w - text_w) // 2  # Center horizontally
+        text_y = header_y + (header_h - text_h) // 2  # Center vertically
+        
+        draw.text((text_x, text_y), header_text, fill=(25, 25, 35), font=self.font_title)
 
         # Get current state
         state = self.data_manager.state
 
         # Status indicator
         status_x = w - 25
-        status_y = header_y + 21
+        status_y = header_y + header_h // 2  # Center vertically in header
         status_color = {
             DataState.IDLE: (180, 180, 190),
             DataState.LOADING: (100, 150, 255),
@@ -199,13 +225,13 @@ class BusPage:
         sway = int(5 * math.sin(t * 2.1))
         bus_rot = bus_scaled.rotate(tilt, resample=Image.Resampling.BICUBIC, expand=True)
 
-        # --- Bus position (lowered)
-        bus_area_top = header_y + header_h + 18
+        # --- Bus position (moved up with negative margin effect)
+        bus_area_top = header_y + header_h - 5  # Moved up by reducing gap after header
         bus_area_bottom = h - 2 * 68 - 22  
         bus_area_h = max(60, bus_area_bottom - bus_area_top)
 
         bus_x = (w - bus_rot.width) // 2 + sway
-        bus_y = bus_area_top + (bus_area_h - bus_rot.height) // 2 + bounce
+        bus_y = bus_area_top + (bus_area_h - bus_rot.height) // 2 + bounce - 12  # Additional upward adjustment
 
         # Shadow under bus (light gray, not black)
         shadow_w = int(target_w * 0.72)
@@ -289,7 +315,9 @@ class BusPage:
 
                 if i < len(items):
                     wait = int(items[i].get("wait_minutes", 0))
+                    status = items[i].get("status", "")
 
+                    # Draw wait time
                     wait_txt = f"{wait}"
                     bbox = draw.textbbox((0, 0), wait_txt, font=self.font_big)
                     tw = bbox[2] - bbox[0]
@@ -299,9 +327,47 @@ class BusPage:
 
                     draw.text((x, y), wait_txt, fill=pal["text"], font=self.font_big)
 
+                    # Draw "min" label
                     min_txt = "min"
                     bbox2 = draw.textbbox((0, 0), min_txt, font=self.font_small)
-                    draw.text((x + tw + 8, y + th - (bbox2[3] - bbox2[1]) - 2), min_txt, fill=pal["text"], font=self.font_small)
+                    min_x = x + tw + 8
+                    min_y = y + th - (bbox2[3] - bbox2[1]) - 2
+                    draw.text((min_x, min_y), min_txt, fill=pal["text"], font=self.font_small)
+
+                    # Draw status badge if present
+                    if status:
+                        is_problem = self._is_problem_status(status)
+                        
+                        if is_problem:
+                            # Problem status: red/orange with warning icon
+                            status_text = "⚠️ Problème"
+                            badge_bg = (220, 60, 60)  # Red background
+                            badge_text_color = (255, 255, 255)
+                        else:
+                            # Normal status: discrete gray
+                            status_text = status
+                            badge_bg = (60, 60, 70)  # Dark gray background
+                            badge_text_color = (150, 150, 160)  # Light gray text
+                        
+                        # Position badge on the right side of the card
+                        status_bbox = draw.textbbox((0, 0), status_text, font=self.font_status)
+                        status_w = status_bbox[2] - status_bbox[0] + 12  # Add padding
+                        status_h = status_bbox[3] - status_bbox[1] + 8
+                        
+                        badge_x = right - status_w - 12
+                        badge_y = y1 + (card_h - status_h) // 2
+                        
+                        # Draw badge background
+                        draw.rounded_rectangle(
+                            [badge_x, badge_y, badge_x + status_w, badge_y + status_h],
+                            radius=6,
+                            fill=badge_bg
+                        )
+                        
+                        # Draw badge text
+                        text_x = badge_x + 6
+                        text_y = badge_y + 4
+                        draw.text((text_x, text_y), status_text, fill=badge_text_color, font=self.font_status)
 
                 else:
                     # No data for this slot

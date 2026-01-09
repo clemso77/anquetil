@@ -44,3 +44,4 @@ BACKLIGHT_DEFAULT_DUTY = 80  # Default brightness (0-100%)
 
 # Data Refresh Configuration
 REFRESH_INTERVAL_SECONDS = 80  # Auto-refresh interval for bus data
+BUS_ID = "STIF:StopPoint:Q:7800:"

@@ -22,7 +22,7 @@ class APIService:
     def __init__(self):
         """Initialize the API service."""
         self.api_key = os.getenv("PRIM_API_KEY")
-        self.base_url = "https://prim.iledefrance-mobilites.fr/marketplace/estimated-timetable"
+        self.base_url = "https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring"
         self._current_request: Optional[threading.Thread] = None
         self._cancel_requested = False
         
@@ -100,7 +100,7 @@ class APIService:
             "Accept-Encoding": "gzip",
         }
 
-        params = {"LineRef": "ALL"}
+        params = {"MonitoringRef": stop_point_ref}
 
         try:
             response = requests.get(
@@ -110,60 +110,45 @@ class APIService:
                 timeout=timeout,
             )
             response.raise_for_status()
+            print("[DEBUG] URL:", response.url)
+            print("[DEBUG] Status:", response.status_code)
+            print("[DEBUG] Content-Type:", response.headers.get("Content-Type"))
+            print("[DEBUG] Content-Encoding:", response.headers.get("Content-Encoding"))
             
             # Check if cancellation was requested
             if self._cancel_requested:
                 return []
             
             data = response.json()
+            print("[DEBUG] Top-level keys:", list(data.keys())[:10])
+            deliveries = data.get("Siri", {}).get("ServiceDelivery", {}).get("StopMonitoringDelivery", [])
             results = []
 
-            def walk_json(obj):
-                """Recursively walk JSON structure to find departure info."""
-                nonlocal results
-                if len(results) >= limit:
-                    return
+            for d in deliveries:
+                for visit in d.get("MonitoredStopVisit", []) or []:
+                    mr = visit.get("MonitoringRef", {})
+                    if (mr.get("value") if isinstance(mr, dict) else mr) != stop_point_ref:
+                        continue
 
-                if isinstance(obj, dict):
-                    # Check if this is a departure entry
-                    if (
-                        "StopPointRef" in obj
-                        and ("ExpectedDepartureTime" in obj or "AimedDepartureTime" in obj)
-                    ):
-                        sp = obj["StopPointRef"]
-                        sp_val = sp.get("value") if isinstance(sp, dict) else sp
+                    mvj = visit.get("MonitoredVehicleJourney", {}) or {}
+                    call = mvj.get("MonitoredCall", {}) or {}
+                    ts = call.get("ExpectedDepartureTime") or call.get("AimedDepartureTime")
+                    if not ts:
+                        continue
 
-                        if sp_val == stop_point_ref:
-                            ts = obj.get("ExpectedDepartureTime") or obj.get("AimedDepartureTime")
-                            try:
-                                dt = self._parse_datetime(ts)
-                            except Exception:
-                                return
+                    dt = self._parse_datetime(ts)
+                    results.append({
+                        "expected_departure_utc": dt.isoformat(),
+                        "wait_minutes": self._calculate_wait_minutes(dt),
+                        "line_ref": (mvj.get("LineRef") or {}).get("value"),
+                        "destination_ref": (mvj.get("DestinationRef") or {}).get("value"),
+                        "status": call.get("DepartureStatus"),
+                    })
 
-                            results.append({
-                                "expected_departure_utc": dt.isoformat(),
-                                "wait_minutes": self._calculate_wait_minutes(dt),
-                                "line_ref": obj.get("LineRef"),
-                                "destination_ref": obj.get("DestinationRef"),
-                                "status": obj.get("DepartureStatus"),
-                            })
-
-                    # Recurse into dict values
-                    for v in obj.values():
-                        walk_json(v)
-
-                elif isinstance(obj, list):
-                    # Recurse into list items
-                    for item in obj:
-                        if len(results) >= limit:
-                            return
-                        walk_json(item)
-
-            walk_json(data)
-
-            # Sort by departure time
+            print(results)
             results.sort(key=lambda x: x["expected_departure_utc"])
-            return results
+            print(results)
+            return results[:limit]
 
         except requests.Timeout:
             raise RuntimeError(f"Request timeout after {timeout} seconds")
