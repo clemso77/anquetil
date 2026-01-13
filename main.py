@@ -55,9 +55,8 @@ class Application:
         self.button = None
         self.page = None
         
-        # Dimming overlay state
-        self.dimming_active = False
-        self.dimming_opacity = 0.92  # High opacity for strong dimming effect
+        # Screen state
+        self.screen_on = True
         
         # Stop point reference for bus data
         self.stop_point_ref = config.BUS_ID
@@ -149,7 +148,8 @@ class Application:
 
             print("Initialization complete!")
             print("Short press: Manual refresh")
-            print("Long press: Toggle screen dimming")
+            print("Long press: Shut down screen")
+            print("Any press when screen is off: Restore screen")
             print("Press Ctrl+C to exit")
 
         except Exception as e:
@@ -159,9 +159,13 @@ class Application:
 
     def _on_short_press(self):
         """
-        Short press: trigger immediate manual refresh.
-        Does not disrupt the 80s auto-refresh cycle.
+        Short press: trigger immediate manual refresh (only if screen is on).
+        If screen is off, this will be handled by _check_screen_restore().
         """
+        # If screen is off, do nothing (restoration handled in update loop)
+        if not self.screen_on:
+            return
+            
         print("Short press detected - triggering manual refresh")
         
         if self.refresh_manager.is_refreshing():
@@ -175,20 +179,18 @@ class Application:
         self._update_display(force=True)
 
     def _on_long_press(self):
-        """Long press: toggle dimming overlay (simulates screen dimming)."""
-        self.dimming_active = not self.dimming_active
-        status = "ON" if self.dimming_active else "OFF"
-        print(f"Long press detected - dimming overlay {status}")
-        
-        # Toggle backlight along with dimming overlay
-        if self.dimming_active:
-            self.backlight.off()
-        else:
-            self.backlight.on()
+        """Long press: shut down the screen."""
+        # If screen is off, do nothing (restoration handled in update loop)
+        if not self.screen_on:
+            return
+            
+        print("Long press detected - shutting down screen")
+        self.screen_on = False
+        self.backlight.off()
 
     def _update_display(self, force: bool = False):
         """
-        Render and display the page with optional dimming overlay.
+        Render and display the page.
         
         Args:
             force: If True, bypass FPS throttling
@@ -207,16 +209,6 @@ class Application:
         try:
             # Render base page
             image = self.page.render()
-            
-            # Apply dimming overlay if active
-            if self.dimming_active:
-                # Create semi-transparent black overlay
-                overlay = Image.new("RGBA", image.size, (0, 0, 0, int(255 * self.dimming_opacity)))
-                # Convert base image to RGBA and composite with overlay
-                image_rgba = image.convert("RGBA")
-                dimmed = Image.alpha_composite(image_rgba, overlay)
-                image = dimmed.convert("RGB")
-            
             self.tft.display_image(image)
         except Exception as e:
             print(f"Error updating display: {e}")
@@ -227,11 +219,28 @@ class Application:
 
         try:
             while self.running:
-                # Update button state
+                # Check if we need to restore the screen
+                if not self.screen_on:
+                    # Check for any button press (press down, not release)
+                    if self.button._is_pressed() and self.button.last_state == 1:
+                        # Button is being pressed and was not pressed before
+                        print("Button press detected - restoring screen")
+                        self.screen_on = True
+                        self.backlight.on()
+                        # Update button state to track that button is now pressed
+                        self.button.last_state = 0
+                        self.button.pressed = True
+                        self.button.press_start_time = time.time()
+                        # Skip the normal update to prevent callbacks
+                        time.sleep(0.01)
+                        continue
+                
+                # Update button state (only processes callbacks when screen is on)
                 self.button.update()
 
-                # Update screen (animation)
-                self._update_display(force=False)
+                # Update screen (animation) - only when screen is on
+                if self.screen_on:
+                    self._update_display(force=False)
 
                 # Small sleep to avoid saturating CPU
                 time.sleep(0.01)
