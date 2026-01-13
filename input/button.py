@@ -107,6 +107,12 @@ class Button:
             
             time.sleep(0.01)  # Small delay to prevent CPU spinning
     
+    def reset_state(self):
+        """Reset button state to initial values"""
+        self.pressed = False
+        self.press_start_time = 0
+        self.last_state = lgpio.gpio_read(self.handle, self.pin)
+    
     def cleanup(self):
         """Cleanup GPIO resources"""
         pass  # lgpio cleanup handled by main gpio handle
