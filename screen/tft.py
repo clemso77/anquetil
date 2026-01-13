@@ -185,10 +185,10 @@ class TFT:
         This puts the display into sleep mode and turns off the display output.
         More power efficient than just showing black pixels.
         """
-        # Turn off display
+        # Turn off display (minimal delay required)
         self._write_command(config.ST7789_DISPOFF)
         time.sleep(0.01)
-        # Enter sleep mode for additional power savings
+        # Enter sleep mode (ST7789 datasheet requires 120ms)
         self._write_command(config.ST7789_SLPIN)
         time.sleep(0.12)
     
@@ -197,10 +197,10 @@ class TFT:
         Turn on the display using ST7789 command.
         This wakes the display from sleep mode and turns on the display output.
         """
-        # Exit sleep mode
+        # Exit sleep mode (ST7789 datasheet requires 120ms for wake-up)
         self._write_command(config.ST7789_SLPOUT)
         time.sleep(0.12)
-        # Turn on display
+        # Turn on display (minimal delay required)
         self._write_command(config.ST7789_DISPON)
         time.sleep(0.01)
     
