@@ -93,6 +93,35 @@ anquetil/
 
 ## Installation
 
+### Quick Setup (Recommended)
+
+The easiest way to set up the project is using the provided setup script:
+
+1. **Clone the repository:**
+   ```bash
+   cd ~
+   git clone https://github.com/clemso77/anquetil.git
+   cd anquetil
+   ```
+
+2. **Run the setup script:**
+   ```bash
+   chmod +x setup.sh
+   ./setup.sh
+   ```
+
+The setup script will:
+- Install required system packages (python3-spidev, python3-lgpio, python3-pil)
+- Add your user to gpio and spi groups for proper permissions
+- Check and optionally enable SPI interface
+- Verify GPIO access
+
+**Important:** After setup, you may need to log out and log back in for group membership changes to take effect, or reboot if SPI was just enabled.
+
+### Manual Installation
+
+If you prefer to install manually:
+
 1. **Clone the repository:**
    ```bash
    cd ~
@@ -106,14 +135,20 @@ anquetil/
    sudo apt install -y python3-spidev python3-lgpio python3-pil
    ```
 
-3. **Enable SPI** (if not already enabled):
+3. **Configure permissions:**
+   ```bash
+   sudo usermod -a -G gpio,spi $USER
+   # Log out and log back in for changes to take effect
+   ```
+
+4. **Enable SPI** (if not already enabled):
    ```bash
    sudo nano /boot/firmware/config.txt
    # Add: dtparam=spi=on
    sudo reboot
    ```
 
-4. **Run the application:**
+5. **Run the application:**
    ```bash
    python3 main.py
    ```
