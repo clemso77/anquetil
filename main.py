@@ -194,8 +194,11 @@ class Application:
             
         print("Long press detected - shutting down screen")
         self.screen_on = False
-        # Turn off backlight first, then clear display to black
+        # Turn off backlight first
         self.backlight.off()
+        # Cleanup button state for clean detection on next press
+        self.button.reset_state()
+        # Clear display to black
         self.tft.clear()
 
     def _update_display(self, force: bool = False):
@@ -238,6 +241,8 @@ class Application:
                         print("Button press detected - restoring screen")
                         self.screen_on = True
                         self.backlight.on()
+                        # Force display update to show screen content immediately
+                        self._update_display(force=True)
                         # Suppress callbacks for this button press to prevent unwanted actions
                         self.suppress_button_callbacks = True
                 
