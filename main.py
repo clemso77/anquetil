@@ -194,7 +194,9 @@ class Application:
             
         print("Long press detected - shutting down screen")
         self.screen_on = False
+        # Turn off backlight first, then clear display to black
         self.backlight.off()
+        self.tft.clear()
 
     def _update_display(self, force: bool = False):
         """
