@@ -137,7 +137,8 @@ If you prefer to install manually:
 
 3. **Configure permissions:**
    ```bash
-   sudo usermod -a -G gpio,spi $USER
+   # Add your user to gpio and spi groups
+   sudo usermod -a -G gpio,spi $(whoami)
    # Log out and log back in for changes to take effect
    ```
 
