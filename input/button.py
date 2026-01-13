@@ -108,7 +108,14 @@ class Button:
             time.sleep(0.01)  # Small delay to prevent CPU spinning
     
     def reset_state(self):
-        """Reset button state to initial values"""
+        """
+        Reset button state to initial values.
+        
+        This method should be called when you need to clear any pending button
+        state and start fresh with a clean detection cycle. Typically used after
+        long press detection or when changing application modes to ensure no
+        stale button press data affects subsequent button detection.
+        """
         self.pressed = False
         self.press_start_time = 0
         self.last_state = lgpio.gpio_read(self.handle, self.pin)
