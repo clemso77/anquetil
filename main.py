@@ -179,7 +179,12 @@ class Application:
         self.dimming_active = not self.dimming_active
         status = "ON" if self.dimming_active else "OFF"
         print(f"Long press detected - dimming overlay {status}")
-        Backlight.set_brightness(self.backlight, 0)
+        
+        # Toggle backlight along with dimming overlay
+        if self.dimming_active:
+            self.backlight.off()
+        else:
+            self.backlight.on()
 
     def _update_display(self, force: bool = False):
         """
