@@ -179,6 +179,31 @@ class TFT:
         """Clear the display (fill with black)"""
         self.fill((0, 0, 0))
     
+    def display_off(self):
+        """
+        Turn off the display completely using ST7789 command.
+        This puts the display into sleep mode and turns off the display output.
+        More power efficient than just showing black pixels.
+        """
+        # Turn off display
+        self._write_command(config.ST7789_DISPOFF)
+        time.sleep(0.01)
+        # Enter sleep mode for additional power savings
+        self._write_command(config.ST7789_SLPIN)
+        time.sleep(0.12)
+    
+    def display_on(self):
+        """
+        Turn on the display using ST7789 command.
+        This wakes the display from sleep mode and turns on the display output.
+        """
+        # Exit sleep mode
+        self._write_command(config.ST7789_SLPOUT)
+        time.sleep(0.12)
+        # Turn on display
+        self._write_command(config.ST7789_DISPON)
+        time.sleep(0.01)
+    
     def cleanup(self):
         """Cleanup resources"""
         self.spi.close()

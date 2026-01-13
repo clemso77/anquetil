@@ -3,7 +3,7 @@
 Main application for Raspberry Pi TFT Display
 
 Displays a single animated page (dancing bus + 2 next departures)
-on an ST7789 screen with a button (short: refresh, long: dimming).
+on an ST7789 screen with a button (short: refresh, long: screen off).
 
 Refactored architecture:
 - Network calls are in services/api_service.py
@@ -183,7 +183,7 @@ class Application:
         self._update_display(force=True)
 
     def _on_long_press(self):
-        """Long press: shut down the screen."""
+        """Long press: shut down the screen completely."""
         # If callbacks are suppressed, do nothing
         if self.suppress_button_callbacks:
             return
@@ -192,14 +192,14 @@ class Application:
         if not self.screen_on:
             return
             
-        print("Long press detected - shutting down screen")
+        print("Long press detected - shutting down screen completely")
         self.screen_on = False
         # Turn off backlight first
         self.backlight.off()
         # Cleanup button state for clean detection on next press
         self.button.reset_state()
-        # Clear display to black
-        self.tft.clear()
+        # Turn off display completely (not just clear, but actually power down)
+        self.tft.display_off()
 
     def _update_display(self, force: bool = False):
         """
@@ -240,6 +240,9 @@ class Application:
                         # Button is being pressed and was not pressed before
                         print("Button press detected - restoring screen")
                         self.screen_on = True
+                        # Turn on display first
+                        self.tft.display_on()
+                        # Then turn on backlight
                         self.backlight.on()
                         # Force display update to show screen content immediately
                         self._update_display(force=True)
@@ -281,8 +284,8 @@ class Application:
 
         try:
             if self.tft:
-                print("Clearing display...")
-                self.tft.clear()
+                print("Turning off display...")
+                self.tft.display_off()
                 self.tft.cleanup()
         except Exception as e:
             print(f"Error cleaning up TFT: {e}")
