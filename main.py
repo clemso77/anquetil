@@ -230,6 +230,7 @@ class Application:
                 # Check if we need to restore the screen
                 if not self.screen_on:
                     # Check for any button press (press down, not release)
+                    # last_state == 1 means button was not pressed (pull-up: high = not pressed)
                     if self.button._is_pressed() and self.button.last_state == 1:
                         # Button is being pressed and was not pressed before
                         print("Button press detected - restoring screen")
@@ -238,12 +239,13 @@ class Application:
                         # Suppress callbacks for this button press to prevent unwanted actions
                         self.suppress_button_callbacks = True
                 
-                # Update button state
-                self.button.update()
-                
-                # Re-enable callbacks after button update if they were suppressed
-                if self.suppress_button_callbacks:
-                    self.suppress_button_callbacks = False
+                try:
+                    # Update button state
+                    self.button.update()
+                finally:
+                    # Always re-enable callbacks after button update if they were suppressed
+                    if self.suppress_button_callbacks:
+                        self.suppress_button_callbacks = False
 
                 # Update screen (animation) - only when screen is on
                 if self.screen_on:
