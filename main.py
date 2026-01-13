@@ -57,6 +57,7 @@ class Application:
         
         # Screen state
         self.screen_on = True
+        self.suppress_button_callbacks = False
         
         # Stop point reference for bus data
         self.stop_point_ref = config.BUS_ID
@@ -160,8 +161,11 @@ class Application:
     def _on_short_press(self):
         """
         Short press: trigger immediate manual refresh (only if screen is on).
-        If screen is off, this will be handled by _check_screen_restore().
         """
+        # If callbacks are suppressed, do nothing
+        if self.suppress_button_callbacks:
+            return
+            
         # If screen is off, do nothing (restoration handled in update loop)
         if not self.screen_on:
             return
@@ -180,6 +184,10 @@ class Application:
 
     def _on_long_press(self):
         """Long press: shut down the screen."""
+        # If callbacks are suppressed, do nothing
+        if self.suppress_button_callbacks:
+            return
+            
         # If screen is off, do nothing (restoration handled in update loop)
         if not self.screen_on:
             return
@@ -227,16 +235,15 @@ class Application:
                         print("Button press detected - restoring screen")
                         self.screen_on = True
                         self.backlight.on()
-                        # Update button state to track that button is now pressed
-                        self.button.last_state = 0
-                        self.button.pressed = True
-                        self.button.press_start_time = time.time()
-                        # Skip the normal update to prevent callbacks
-                        time.sleep(0.01)
-                        continue
+                        # Suppress callbacks for this button press to prevent unwanted actions
+                        self.suppress_button_callbacks = True
                 
-                # Update button state (only processes callbacks when screen is on)
+                # Update button state
                 self.button.update()
+                
+                # Re-enable callbacks after button update if they were suppressed
+                if self.suppress_button_callbacks:
+                    self.suppress_button_callbacks = False
 
                 # Update screen (animation) - only when screen is on
                 if self.screen_on:
