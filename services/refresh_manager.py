@@ -1,156 +1,168 @@
 """
 Refresh Manager Module
 
-Manages automatic data refresh with configurable interval and manual refresh capability.
-Handles timer lifecycle and prevents duplicate requests.
+Manages automatic data refresh with a configurable interval and a manual
+refresh trigger.  Uses a single long-lived daemon thread (not a chain of
+``threading.Timer`` objects) so that the manager is safe to stop/join at any
+time without race conditions or timer-chain drift.
 """
 
+import logging
 import threading
-import time
 from typing import Callable, Optional
+
+logger = logging.getLogger(__name__)
+
+
+#: Seconds to wait for the background worker thread to finish on stop().
+_WORKER_SHUTDOWN_TIMEOUT_SECONDS = 5
 
 
 class RefreshManager:
     """
-    Manages periodic data refresh with auto-refresh timer and manual trigger.
-    Ensures proper cleanup and prevents duplicate requests.
+    Manages periodic data refresh with auto-refresh and manual trigger.
+
+    A single background daemon thread sleeps for ``refresh_interval_seconds``
+    between cycles.  ``refresh_now()`` wakes the thread early via an internal
+    event so the next fetch starts immediately, without spawning an extra thread.
     """
 
     def __init__(self, refresh_interval_seconds: int = 80):
         """
-        Initialize the refresh manager.
-        
+        Initialise the refresh manager.
+
         Args:
-            refresh_interval_seconds: Interval between automatic refreshes (default: 80)
+            refresh_interval_seconds: Seconds between automatic refreshes.
         """
         self.refresh_interval_seconds = refresh_interval_seconds
-        self._timer: Optional[threading.Timer] = None
-        self._is_running = False
         self._refresh_callback: Optional[Callable[[], None]] = None
         self._is_refreshing = False
+        self._is_running = False
         self._lock = threading.Lock()
+        # Woken when the thread should run a refresh early (manual trigger).
+        self._wakeup_event = threading.Event()
+        # Set when stop() is called so the thread exits cleanly.
         self._stop_event = threading.Event()
+        self._worker: Optional[threading.Thread] = None
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
 
     def set_refresh_callback(self, callback: Callable[[], None]):
         """
-        Set the callback to execute on each refresh.
-        
+        Set the callback to invoke on each refresh cycle.
+
         Args:
-            callback: Function to call when refresh is triggered
+            callback: Zero-argument callable executed on each refresh.
         """
         self._refresh_callback = callback
 
+    def start(self, immediate_refresh: bool = True):
+        """
+        Start the auto-refresh background thread.
+
+        Args:
+            immediate_refresh: If ``True``, run a refresh immediately before
+                               the first timed interval.
+        """
+        if self._is_running:
+            logger.warning("Refresh manager already running — start() ignored")
+            return
+
+        logger.info("Starting refresh manager (interval: %ss)", self.refresh_interval_seconds)
+        self._is_running = True
+        self._stop_event.clear()
+        self._wakeup_event.clear()
+
+        self._worker = threading.Thread(
+            target=self._run,
+            args=(immediate_refresh,),
+            name="RefreshManagerWorker",
+            daemon=True,
+        )
+        self._worker.start()
+
+    def stop(self):
+        """Stop the background thread and block until it exits."""
+        logger.info("Stopping refresh manager...")
+        self._is_running = False
+        self._stop_event.set()
+        self._wakeup_event.set()  # Unblock any sleeping wait
+
+        if self._worker is not None:
+            self._worker.join(timeout=_WORKER_SHUTDOWN_TIMEOUT_SECONDS)
+            self._worker = None
+
+        logger.info("Refresh manager stopped")
+
+    def refresh_now(self):
+        """
+        Trigger an immediate manual refresh without waiting for the next interval.
+
+        The background thread is woken up; no extra thread is spawned.
+        """
+        logger.info("Manual refresh triggered")
+        self._wakeup_event.set()
+
+    def is_refreshing(self) -> bool:
+        """Return ``True`` if a refresh callback is currently executing."""
+        with self._lock:
+            return self._is_refreshing
+
+    def is_running(self) -> bool:
+        """Return ``True`` if the background thread is active."""
+        return self._is_running
+
+    # ------------------------------------------------------------------
+    # Internal
+    # ------------------------------------------------------------------
+
     def _execute_refresh(self):
-        """Execute the refresh callback if not already refreshing."""
+        """Run the refresh callback, guarded against concurrent execution."""
         with self._lock:
             if self._is_refreshing:
-                print("Refresh already in progress, skipping...")
+                logger.debug("Refresh already in progress, skipping")
                 return
             self._is_refreshing = True
 
         try:
             if self._refresh_callback:
                 self._refresh_callback()
-        except Exception as e:
-            print(f"Error during refresh: {e}")
+        except Exception:
+            logger.exception("Unhandled exception during refresh callback")
         finally:
             with self._lock:
                 self._is_refreshing = False
 
-    def _schedule_next_refresh(self):
-        """Schedule the next automatic refresh."""
-        if not self._is_running:
-            return
-
-        def refresh_task():
-            if self._is_running:
-                self._execute_refresh()
-                self._schedule_next_refresh()
-
-        self._timer = threading.Timer(self.refresh_interval_seconds, refresh_task)
-        self._timer.daemon = True
-        self._timer.start()
-
-    def start(self, immediate_refresh: bool = True):
-        """
-        Start the auto-refresh timer.
-        
-        Args:
-            immediate_refresh: If True, triggers an immediate refresh before starting timer
-        """
-        if self._is_running:
-            print("Refresh manager already running")
-            return
-
-        print(f"Starting refresh manager (interval: {self.refresh_interval_seconds}s)")
-        self._is_running = True
-        self._stop_event.clear()
-
-        # Immediate refresh if requested
+    def _run(self, immediate_refresh: bool):
+        """Background worker loop."""
         if immediate_refresh:
             self._execute_refresh()
 
-        # Schedule periodic refreshes
-        self._schedule_next_refresh()
-
-    def stop(self):
-        """Stop the auto-refresh timer and cleanup."""
-        print("Stopping refresh manager...")
-        self._is_running = False
-        self._stop_event.set()
-
-        # Cancel pending timer
-        if self._timer:
-            self._timer.cancel()
-            self._timer = None
-
-        print("Refresh manager stopped")
-
-    def refresh_now(self):
-        """
-        Trigger an immediate manual refresh.
-        This does not reset the auto-refresh interval.
-        """
-        print("Manual refresh triggered")
-        
-        # Execute refresh in a separate thread to avoid blocking
-        refresh_thread = threading.Thread(target=self._execute_refresh)
-        refresh_thread.daemon = True
-        refresh_thread.start()
-
-    def is_refreshing(self) -> bool:
-        """
-        Check if a refresh is currently in progress.
-        
-        Returns:
-            bool: True if refresh is in progress
-        """
-        with self._lock:
-            return self._is_refreshing
-
-    def is_running(self) -> bool:
-        """
-        Check if the refresh manager is active.
-        
-        Returns:
-            bool: True if refresh manager is running
-        """
-        return self._is_running
+        while not self._stop_event.is_set():
+            # Sleep for the configured interval — or until woken early.
+            woken_early = self._wakeup_event.wait(timeout=self.refresh_interval_seconds)
+            if self._stop_event.is_set():
+                break
+            if woken_early:
+                self._wakeup_event.clear()
+            self._execute_refresh()
 
 
-# Singleton instance
+# ---------------------------------------------------------------------------
+# Singleton accessor
+# ---------------------------------------------------------------------------
+
 _refresh_manager_instance: Optional[RefreshManager] = None
 
 
 def get_refresh_manager(refresh_interval_seconds: int = 80) -> RefreshManager:
     """
-    Get the singleton refresh manager instance.
-    
+    Return the singleton :class:`RefreshManager` instance.
+
     Args:
-        refresh_interval_seconds: Refresh interval (only used on first call)
-        
-    Returns:
-        RefreshManager: The refresh manager instance
+        refresh_interval_seconds: Used only on first creation.
     """
     global _refresh_manager_instance
     if _refresh_manager_instance is None:

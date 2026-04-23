@@ -5,7 +5,7 @@ Main application for Raspberry Pi TFT Display
 Displays a single animated page (dancing bus + 2 next departures)
 on an ST7789 screen with a button (short: refresh, long: screen off).
 
-Refactored architecture:
+Architecture:
 - Network calls are in services/api_service.py
 - Auto-refresh managed by services/refresh_manager.py (80s interval)
 - Data state managed by services/data_manager.py
@@ -13,11 +13,10 @@ Refactored architecture:
 - Wait times calculated dynamically from UTC on every render
 """
 
+import logging
 import sys
 import time
 import signal
-import lgpio
-from PIL import Image
 
 # Import configuration
 import config
@@ -38,12 +37,19 @@ from services import (
     DataState,
 )
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
+    datefmt="%Y-%m-%dT%H:%M:%S",
+)
+logger = logging.getLogger(__name__)
+
 
 class Application:
     """
     Main application class.
-    
-    Handles hardware initialization, display rendering, and event processing.
+
+    Handles hardware initialisation, display rendering, and event processing.
     Data fetching and refresh management are delegated to services.
     """
 
@@ -54,20 +60,21 @@ class Application:
         self.backlight = None
         self.button = None
         self.page = None
-        
+
         # Screen state
         self.screen_on = True
         self.suppress_button_callbacks = False
-        
+
         # Stop point reference for bus data
         self.stop_point_ref = config.BUS_ID
+
         # Services
         self.api_service = get_api_service()
         self.data_manager = get_data_manager()
         self.refresh_manager = get_refresh_manager(config.REFRESH_INTERVAL_SECONDS)
 
         # Display timing
-        self.last_frame_ts = 0.1
+        self.last_frame_ts: float = 0.0
         self.target_fps = 12  # Smooth animation without overloading CPU
 
         # Setup signal handlers for graceful shutdown
@@ -76,60 +83,52 @@ class Application:
 
     def _signal_handler(self, signum, frame):
         """Handle shutdown signals."""
-        print("\nShutdown signal received, cleaning up...")
+        logger.info("Shutdown signal received (%s), cleaning up...", signum)
         self.running = False
 
     def _fetch_data(self):
         """
-        Fetch bus data and update data manager.
-        Called by refresh manager on schedule and manual refresh.
+        Fetch bus data and update the data manager.
+
+        Called by the refresh manager on schedule and on manual refresh.
         """
-        print("Fetching bus data...")
+        logger.info("Fetching bus data...")
         self.data_manager.set_loading()
-        
+
         try:
-            # Fetch data from API service
             data = self.api_service.fetch_waiting_times(
                 stop_point_ref=self.stop_point_ref,
                 limit=2,
-                timeout=15
+                timeout=15,
             )
-            
-            # Update data manager with success
             self.data_manager.set_success(data)
-            print(f"Data fetched successfully: {len(data)} items")
-            print(f"{data}")
-            
-        except Exception as e:
-            # Update data manager with error
-            error_msg = str(e)
-            self.data_manager.set_error(error_msg)
-            print(f"Error fetching data: {error_msg}")
+            logger.info("Data fetched successfully: %d item(s) — %s", len(data), data)
+        except Exception:
+            logger.exception("Error fetching bus data")
+            self.data_manager.set_error("Network error — see logs for details")
 
     def setup(self):
-        """Initialize hardware and create the single page."""
-        print("Initializing Raspberry Pi TFT Display...")
-        print(f"Auto-refresh interval: {config.REFRESH_INTERVAL_SECONDS} seconds")
+        """Initialise hardware and create the single page."""
+        logger.info("Initialising Raspberry Pi TFT Display...")
+        logger.info("Auto-refresh interval: %ss", config.REFRESH_INTERVAL_SECONDS)
 
         try:
-            print("Opening GPIO chip...")
+            logger.info("Opening GPIO chip...")
+            import lgpio
             self.gpio_handle = lgpio.gpiochip_open(0)
 
-            print("Initializing TFT display...")
+            logger.info("Initialising TFT display...")
             self.tft = TFT(self.gpio_handle)
 
-            print("Initializing backlight...")
+            logger.info("Initialising backlight...")
             self.backlight = Backlight(self.gpio_handle)
 
-            print("Initializing button...")
+            logger.info("Initialising button...")
             self.button = Button(self.gpio_handle)
-
-            # Button callbacks
             self.button.on_short_press = self._on_short_press
             self.button.on_long_press = self._on_long_press
 
-            # Create the single page (uses data manager, no fetch function)
-            print("Creating BusPage...")
+            logger.info("Creating BusPage...")
             self.page = BusPage(
                 data_manager=self.data_manager,
                 bus_image_path="assets/bus.gif",
@@ -137,94 +136,67 @@ class Application:
                 fps=44,
             )
 
-            # Setup refresh manager
-            print("Setting up refresh manager...")
+            logger.info("Setting up refresh manager...")
             self.refresh_manager.set_refresh_callback(self._fetch_data)
-            
-            # Start auto-refresh (will do immediate first fetch)
             self.refresh_manager.start(immediate_refresh=True)
 
-            print("Displaying initial frame...")
+            logger.info("Displaying initial frame...")
             self._update_display(force=True)
 
-            print("Initialization complete!")
-            print("Short press: Manual refresh")
-            print("Long press: Shut down screen")
-            print("Any press when screen is off: Restore screen")
-            print("Press Ctrl+C to exit")
+            logger.info("Initialisation complete!")
+            logger.info("Short press: manual refresh | Long press: screen off | Ctrl+C: exit")
 
-        except Exception as e:
-            print(f"Error during setup: {e}")
+        except Exception:
+            logger.exception("Error during setup")
             self.cleanup()
             raise
 
     def _on_short_press(self):
-        """
-        Short press: trigger immediate manual refresh (only if screen is on).
-        """
-        # If callbacks are suppressed, do nothing
-        if self.suppress_button_callbacks:
+        """Short press: trigger immediate manual refresh (only if screen is on)."""
+        if self.suppress_button_callbacks or not self.screen_on:
             return
-            
-        # If screen is off, do nothing (restoration handled in update loop)
-        if not self.screen_on:
-            return
-            
-        print("Short press detected - triggering manual refresh")
-        
+
+        logger.info("Short press — triggering manual refresh")
+
         if self.refresh_manager.is_refreshing():
-            print("Refresh already in progress, ignoring...")
+            logger.info("Refresh already in progress, ignoring")
             return
-        
-        # Trigger immediate refresh
+
         self.refresh_manager.refresh_now()
-        
-        # Force display update to show loading state
         self._update_display(force=True)
 
     def _on_long_press(self):
         """Long press: shut down the screen completely."""
-        # If callbacks are suppressed, do nothing
-        if self.suppress_button_callbacks:
+        if self.suppress_button_callbacks or not self.screen_on:
             return
-            
-        # If screen is off, do nothing (restoration handled in update loop)
-        if not self.screen_on:
-            return
-            
-        print("Long press detected - shutting down screen completely")
+
+        logger.info("Long press — shutting down screen")
         self.screen_on = False
-        # Turn off backlight first
         self.backlight.off()
-        # Cleanup button state for clean detection on next press
         self.button.reset_state()
-        # Turn off display completely (not just clear, but actually power down)
         self.tft.display_off()
 
     def _update_display(self, force: bool = False):
         """
-        Render and display the page.
-        
+        Render and push the current page to the display.
+
         Args:
-            force: If True, bypass FPS throttling
+            force: If ``True``, bypass FPS throttling.
         """
         if not self.page or not self.tft:
             return
 
-        # Throttle FPS
         now = time.time()
-        min_dt = 1.0 / self.target_fps
-        if not force and (now - self.last_frame_ts) < min_dt:
+        if not force and (now - self.last_frame_ts) < (1.0 / self.target_fps):
             return
 
         self.last_frame_ts = now
 
         try:
-            # Render base page
             image = self.page.render()
             self.tft.display_image(image)
-        except Exception as e:
-            print(f"Error updating display: {e}")
+        except Exception:
+            logger.exception("Error updating display")
 
     def run(self):
         """Main application loop."""
@@ -232,107 +204,105 @@ class Application:
 
         try:
             while self.running:
-                # Check if we need to restore the screen
                 if not self.screen_on:
-                    # Check for any button press (press down, not release)
-                    # last_state == 1 means button was not pressed (pull-up: high = not pressed)
-                    if self.button._is_pressed() and self.button.last_state == 1:
-                        # Button is being pressed and was not pressed before
-                        print("Button press detected - restoring screen")
+                    # Detect any press-down to restore the screen
+                    if self.button.is_pressed() and self.button.last_state == 1:
+                        logger.info("Button press — restoring screen")
                         self.screen_on = True
-                        # Turn on display first
                         self.tft.display_on()
-                        # Then turn on backlight
                         self.backlight.on()
-                        # Force display update to show screen content immediately
                         self._update_display(force=True)
-                        # Suppress callbacks for this button press to prevent unwanted actions
                         self.suppress_button_callbacks = True
-                
+
                 try:
-                    # Update button state
                     self.button.update()
                 finally:
-                    # Always re-enable callbacks after button update if they were suppressed
                     if self.suppress_button_callbacks:
                         self.suppress_button_callbacks = False
 
-                # Update screen (animation) - only when screen is on
                 if self.screen_on:
                     self._update_display(force=False)
 
-                # Small sleep to avoid saturating CPU
                 time.sleep(0.01)
 
         except KeyboardInterrupt:
-            print("\nKeyboard interrupt received")
-        except Exception as e:
-            print(f"Error in main loop: {e}")
+            logger.info("Keyboard interrupt received")
+        except Exception:
+            logger.exception("Unexpected error in main loop")
         finally:
             self.cleanup()
 
     def cleanup(self):
-        """Cleanup resources."""
-        print("Cleaning up...")
+        """Release all hardware resources."""
+        logger.info("Cleaning up...")
 
-        # Stop refresh manager first
         try:
             if self.refresh_manager:
                 self.refresh_manager.stop()
-        except Exception as e:
-            print(f"Error stopping refresh manager: {e}")
+        except Exception:
+            logger.exception("Error stopping refresh manager")
+
+        try:
+            if self.api_service:
+                self.api_service.close()
+        except Exception:
+            logger.exception("Error closing API service")
 
         try:
             if self.tft:
-                print("Turning off display...")
+                logger.info("Turning off display...")
                 self.tft.display_off()
                 self.tft.cleanup()
-        except Exception as e:
-            print(f"Error cleaning up TFT: {e}")
+        except Exception:
+            logger.exception("Error cleaning up TFT")
 
         try:
             if self.backlight:
-                print("Turning off backlight...")
+                logger.info("Turning off backlight...")
                 self.backlight.off()
                 self.backlight.cleanup()
-        except Exception as e:
-            print(f"Error cleaning up backlight: {e}")
+        except Exception:
+            logger.exception("Error cleaning up backlight")
 
         try:
             if self.button:
                 self.button.cleanup()
-        except Exception as e:
-            print(f"Error cleaning up button: {e}")
+        except Exception:
+            logger.exception("Error cleaning up button")
 
         try:
-            if self.gpio_handle:
-                print("Closing GPIO chip...")
+            if self.gpio_handle is not None:
+                logger.info("Closing GPIO chip...")
+                import lgpio
                 lgpio.gpiochip_close(self.gpio_handle)
-        except Exception as e:
-            print(f"Error closing GPIO: {e}")
+                self.gpio_handle = None
+        except Exception:
+            logger.exception("Error closing GPIO")
 
-        print("Cleanup complete")
+        logger.info("Cleanup complete")
 
 
 def main():
-    """Main entry point - only handles initialization and display."""
+    """Application entry point."""
     try:
-        import lgpio  # noqa
-        import spidev  # noqa
-        # PIL Image already imported at module level
-    except ImportError as e:
-        print("Error: Required system packages not installed")
-        print("Please install: python3-lgpio python3-spidev python3-pil")
-        print(f"Import error: {e}")
+        import lgpio  # noqa: F401
+        import spidev  # noqa: F401
+        from PIL import Image  # noqa: F401
+    except ImportError as exc:
+        print(
+            "Error: required system packages are not installed.\n"
+            "Please run: sudo apt install python3-lgpio python3-spidev python3-pil\n"
+            f"Import error: {exc}",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     app = Application()
-
     try:
         app.setup()
         app.run()
-    except Exception as e:
-        print(f"Fatal error: {e}")
+    except Exception:
+        logger.exception("Fatal error")
         sys.exit(1)
 
 
