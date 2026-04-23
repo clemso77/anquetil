@@ -16,6 +16,31 @@ from services import DataManager, DataState
 
 logger = logging.getLogger(__name__)
 
+try:
+    _RESAMPLING_COMPAT = Image.Resampling
+except AttributeError:
+    class _RESAMPLING_COMPAT:  # type: ignore[no-redef]
+        LANCZOS = Image.LANCZOS
+        BICUBIC = Image.BICUBIC
+
+
+def _load_font(size: int) -> ImageFont.ImageFont:
+    """
+    Try to load a scalable truetype font and fall back to PIL default.
+
+    Args:
+        size: Desired font size.
+
+    Returns:
+        PIL font instance.
+    """
+    for font_name in ("DejaVuSans.ttf", "FreeSans.ttf", "LiberationSans-Regular.ttf"):
+        try:
+            return ImageFont.truetype(font_name, size)
+        except OSError:
+            continue
+    return ImageFont.load_default()
+
 
 def load_bus_frames(path: str) -> List[Image.Image]:
     """
@@ -74,12 +99,12 @@ class BusPage:
         # Bus frames cache
         self._bus_frames: Optional[List[Image.Image]] = None
 
-        self.font_title = ImageFont.load_default(18)
-        self.font_huge = ImageFont.load_default(50)
-        self.font_big = ImageFont.load_default(30)
-        self.font_medium = ImageFont.load_default(18)
-        self.font_small = ImageFont.load_default(16)
-        self.font_tiny = ImageFont.load_default(12)
+        self.font_title = _load_font(18)
+        self.font_huge = _load_font(50)
+        self.font_big = _load_font(30)
+        self.font_medium = _load_font(18)
+        self.font_small = _load_font(16)
+        self.font_tiny = _load_font(12)
 
     def _get_bus_frames(self) -> List[Image.Image]:
         """Return cached bus frames, loading from disk on first call."""
@@ -205,13 +230,13 @@ class BusPage:
         target_w = int(w * 0.58)
         ratio = target_w / bus_src.width
         target_h = int(bus_src.height * ratio)
-        bus_scaled = bus_src.resize((target_w, target_h), resample=Image.Resampling.LANCZOS)
+        bus_scaled = bus_src.resize((target_w, target_h), resample=_RESAMPLING_COMPAT.LANCZOS)
 
         # "Dance" animation
         bounce = int(7 * math.sin(t * 4.2))
         tilt = 5 * math.sin(t * 3.6 + 0.5)
         sway = int(5 * math.sin(t * 2.1))
-        bus_rot = bus_scaled.rotate(tilt, resample=Image.Resampling.BICUBIC, expand=True)
+        bus_rot = bus_scaled.rotate(tilt, resample=_RESAMPLING_COMPAT.BICUBIC, expand=True)
 
         # --- Bus position (moved up with negative margin effect)
         bus_area_top = header_y + header_h + 5
