@@ -53,10 +53,11 @@ class BusPageDisplayTests(unittest.TestCase):
     def test_render_with_missing_bus_image_falls_back(self):
         data_manager = DataManager()
         data_manager.set_loading()
+        missing_path = str(Path(tempfile.gettempdir()) / "does-not-exist-bus-image.png")
 
         page = BusPage(
             data_manager=data_manager,
-            bus_image_path="/tmp/does-not-exist-bus-image.png",
+            bus_image_path=missing_path,
             fps=12,
         )
         result = page.render()
