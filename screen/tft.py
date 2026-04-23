@@ -54,6 +54,7 @@ class TFT:
             if enable_inversion is None
             else enable_inversion
         )
+        # Config values are expected as ints; cast defensively for runtime overrides.
         min_chunk_size = int(config.SPI_MIN_WRITE_CHUNK_SIZE)
         self.write_chunk_size = int(config.SPI_WRITE_CHUNK_SIZE)
         if self.write_chunk_size < min_chunk_size:
@@ -220,8 +221,12 @@ class TFT:
         self._write_command(config.ST7789_RAMWR)
 
     @staticmethod
-    def _rgb_to_rgb565_bytes(image):
-        """Convert an RGB-mode PIL Image to packed big-endian RGB565 bytes."""
+    def _rgb_to_rgb565_bytes(image: Image.Image):
+        """
+        Convert an RGB-mode PIL Image to packed big-endian RGB565 bytes.
+
+        Precondition: image.mode == "RGB".
+        """
         rgb = image.tobytes()
         rgb565 = bytearray((len(rgb) // 3) * 2)
         j = 0
