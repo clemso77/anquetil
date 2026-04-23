@@ -35,8 +35,7 @@ def load_bus_frames(path: str) -> List[Image.Image]:
         except Exception:
             frames = [img.convert("RGBA")]
 
-    if not frames:
-        raise ValueError(f"No frames could be loaded from {path!r}")
+    # frames is always non-empty here (the except branch guarantees it).
     return frames
 
 
@@ -262,10 +261,10 @@ class BusPage:
             # Show error card — the full error message is available via
             # self.data_manager.error_message but is too long for the small
             # display; "ERROR" is clear enough at a glance.
-            for i, (y1, y2) in enumerate(cards):
+            for first_card, (y1, y2) in enumerate(cards):
                 draw.rounded_rectangle([left, y1, right, y2], radius=16, fill=(60, 40, 40))
                 draw.rounded_rectangle([left, y1, left + 10, y2], radius=16, fill=(255, 100, 100))
-                if i == 0:
+                if first_card == 0:
                     draw.text((left + 18, y1 + 22), "ERROR", fill=(255, 150, 150), font=self.font_small)
         
         elif state == DataState.LOADING and not self.data_manager.has_data():

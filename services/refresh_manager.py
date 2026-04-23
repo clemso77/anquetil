@@ -14,6 +14,10 @@ from typing import Callable, Optional
 logger = logging.getLogger(__name__)
 
 
+#: Seconds to wait for the background worker thread to finish on stop().
+_WORKER_SHUTDOWN_TIMEOUT_SECONDS = 5
+
+
 class RefreshManager:
     """
     Manages periodic data refresh with auto-refresh and manual trigger.
@@ -87,7 +91,7 @@ class RefreshManager:
         self._wakeup_event.set()  # Unblock any sleeping wait
 
         if self._worker is not None:
-            self._worker.join(timeout=5)
+            self._worker.join(timeout=_WORKER_SHUTDOWN_TIMEOUT_SECONDS)
             self._worker = None
 
         logger.info("Refresh manager stopped")
