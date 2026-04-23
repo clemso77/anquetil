@@ -54,7 +54,15 @@ class TFT:
             if enable_inversion is None
             else enable_inversion
         )
-        self.write_chunk_size = max(256, int(config.SPI_WRITE_CHUNK_SIZE))
+        min_chunk_size = int(config.SPI_MIN_WRITE_CHUNK_SIZE)
+        self.write_chunk_size = int(config.SPI_WRITE_CHUNK_SIZE)
+        if self.write_chunk_size < min_chunk_size:
+            self.logger.warning(
+                "SPI_WRITE_CHUNK_SIZE=%s is too small; forcing minimum %s",
+                self.write_chunk_size,
+                min_chunk_size,
+            )
+            self.write_chunk_size = min_chunk_size
 
         if self.init_mode not in ("fast", "safe"):
             self.logger.warning(
@@ -210,11 +218,10 @@ class TFT:
 
         # Write to RAM
         self._write_command(config.ST7789_RAMWR)
-        lgpio.gpio_write(self.handle, config.GPIO_DC, 1)  # Data mode for streaming
 
     @staticmethod
     def _rgb_to_rgb565_bytes(image):
-        """Convert RGB PIL image to packed big-endian RGB565 bytes."""
+        """Convert an RGB-mode PIL Image to packed big-endian RGB565 bytes."""
         rgb = image.tobytes()
         rgb565 = bytearray((len(rgb) // 3) * 2)
         j = 0
@@ -252,6 +259,7 @@ class TFT:
         self._set_window(0, 0, self.width - 1, self.height - 1)
 
         # Write pixel data in chunks to avoid buffer overflow
+        lgpio.gpio_write(self.handle, config.GPIO_DC, 1)  # Data mode for pixel stream
         for i in range(0, len(pixel_data), self.write_chunk_size):
             self.spi.writebytes(pixel_data[i:i + self.write_chunk_size])
 

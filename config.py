@@ -12,11 +12,14 @@ GPIO_BUTTON = 17    # Button (connected to GND, uses internal pull-up)
 # SPI Configuration
 SPI_BUS = 0         # SPI bus number
 SPI_DEVICE = 0      # SPI device number
-SPI_SPEED = 10000000  # Safe default for ST7789 on Raspberry Pi OS Lite
+SPI_SPEED_SAFE = 10000000  # Safe default (8-12MHz range) for Raspberry Pi OS Lite stability
+SPI_SPEED_FAST = 40000000  # Optional faster mode for panels/systems that tolerate it
+SPI_SPEED = SPI_SPEED_SAFE
 SPI_MODE = 0  # ST7789 uses SPI mode 0
-SPI_CSHIGH = False  # Keep CS active-low for stable behaviour
+SPI_CSHIGH = False  # Keep CS active-low for stable behavior
 SPI_INIT_DELAY_SECONDS = 0.05  # Small settle time after SPI setup
 SPI_WRITE_CHUNK_SIZE = 4096  # Chunked writes for stable transfers
+SPI_MIN_WRITE_CHUNK_SIZE = 256  # Avoid very small transfers on slower systems
 
 # Display Configuration
 DISPLAY_WIDTH = 240
@@ -25,7 +28,7 @@ DISPLAY_ROTATION = 0xC0  # MADCTL value: 0xC0 for 180° rotation (MY=1, MX=1)
 DISPLAY_OFFSET_X = 0  # X offset for display window
 DISPLAY_OFFSET_Y = 20  # Y offset for display window
 DISPLAY_INIT_MODE = "safe"  # "fast" or "safe" timings
-DISPLAY_ENABLE_INVERSION = False  # Send INVON only when panel explicitly needs it
+DISPLAY_ENABLE_INVERSION = False  # Set True if the panel appears color-inverted
 
 # ST7789 Commands
 ST7789_NOP = 0x00
