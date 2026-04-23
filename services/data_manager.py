@@ -6,12 +6,15 @@ Manages loading, success, error, and idle states.
 Stores UTC timestamps and calculates wait times dynamically.
 """
 
+import logging
 from enum import Enum
 from typing import List, Dict, Any, Optional, Callable
 from datetime import datetime
 import threading
 
 from .time_utils import calculate_wait_minutes
+
+logger = logging.getLogger(__name__)
 
 
 class DataState(Enum):
@@ -82,8 +85,8 @@ class DataManager:
         for callback in callbacks:
             try:
                 callback(DataState.LOADING)
-            except Exception as e:
-                print(f"Error in state change callback: {e}")
+            except Exception:
+                logger.exception("Error in state change callback")
 
     def set_success(self, data: List[Dict[str, Any]]):
         """
@@ -103,8 +106,8 @@ class DataManager:
         for callback in callbacks:
             try:
                 callback(DataState.SUCCESS)
-            except Exception as e:
-                print(f"Error in state change callback: {e}")
+            except Exception:
+                logger.exception("Error in state change callback")
 
     def set_error(self, error_message: str):
         """
@@ -123,8 +126,8 @@ class DataManager:
         for callback in callbacks:
             try:
                 callback(DataState.ERROR)
-            except Exception as e:
-                print(f"Error in state change callback: {e}")
+            except Exception:
+                logger.exception("Error in state change callback")
 
     def has_data(self) -> bool:
         """

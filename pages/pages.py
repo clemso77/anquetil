@@ -2,60 +2,42 @@
 Pages Module
 
 Defines the BusPage class for rendering bus waiting times with improved UI.
-Now uses centralized data management without direct fetch calls.
+Uses centralised data management without direct fetch calls.
 """
 
-import time
+import logging
 import math
+import time
 from typing import List, Optional
-from datetime import datetime
 
 from PIL import Image, ImageDraw, ImageFont, ImageSequence
 import config
 from services import DataManager, DataState
 
+logger = logging.getLogger(__name__)
+
 
 def load_bus_frames(path: str) -> List[Image.Image]:
     """
-    Load PNG (1 frame) or GIF (multiple frames) in RGBA format.
-    
+    Load a PNG (single frame) or GIF (multiple frames) as a list of RGBA images.
+
     Args:
-        path: Path to image file
-        
+        path: Filesystem path to the image file.
+
     Returns:
-        List of Image frames
+        Non-empty list of RGBA :class:`~PIL.Image.Image` frames.
     """
-    img = Image.open(path)
-    frames = []
-    try:
-        # Animated GIF → multiple frames
-        for frame in ImageSequence.Iterator(img):
-            frames.append(frame.convert("RGBA"))
-    except Exception:
-        frames = [img.convert("RGBA")]
+    with Image.open(path) as img:
+        frames: List[Image.Image] = []
+        try:
+            for frame in ImageSequence.Iterator(img):
+                frames.append(frame.convert("RGBA"))
+        except Exception:
+            frames = [img.convert("RGBA")]
 
     if not frames:
-        frames = [img.convert("RGBA")]
+        raise ValueError(f"No frames could be loaded from {path!r}")
     return frames
-
-
-def draw_vertical_gradient(draw: ImageDraw.ImageDraw, w: int, h: int, top, bottom):
-    """
-    Draw a vertical gradient from top to bottom.
-    
-    Args:
-        draw: ImageDraw object
-        w: Width in pixels
-        h: Height in pixels
-        top: Top color RGB tuple
-        bottom: Bottom color RGB tuple
-    """
-    for y in range(h):
-        t = y / max(1, (h - 1))
-        r = int(top[0] + (bottom[0] - top[0]) * t)
-        g = int(top[1] + (bottom[1] - top[1]) * t)
-        b = int(top[2] + (bottom[2] - top[2]) * t)
-        draw.line([(0, y), (w, y)], fill=(r, g, b))
 
 
 class BusPage:
@@ -101,9 +83,15 @@ class BusPage:
         self.font_tiny = ImageFont.load_default(12)
 
     def _get_bus_frames(self) -> List[Image.Image]:
-        """Get cached bus frames, loading if necessary."""
+        """Return cached bus frames, loading from disk on first call."""
         if self._bus_frames is None:
-            self._bus_frames = load_bus_frames(self.bus_image_path)
+            try:
+                self._bus_frames = load_bus_frames(self.bus_image_path)
+            except Exception:
+                logger.exception("Failed to load bus image from %r", self.bus_image_path)
+                # Fallback: single blank frame so the display still works
+                blank = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+                self._bus_frames = [blank]
         return self._bus_frames
 
     def _is_on_time(self, status: str) -> bool:
@@ -271,10 +259,10 @@ class BusPage:
 
         # Handle different states
         if state == DataState.ERROR:
-            # Show error message
-            error_msg = self.data_manager.error_message or "Error loading data"
+            # Show error card — the full error message is available via
+            # self.data_manager.error_message but is too long for the small
+            # display; "ERROR" is clear enough at a glance.
             for i, (y1, y2) in enumerate(cards):
-                pal = palettes[i]
                 draw.rounded_rectangle([left, y1, right, y2], radius=16, fill=(60, 40, 40))
                 draw.rounded_rectangle([left, y1, left + 10, y2], radius=16, fill=(255, 100, 100))
                 if i == 0:
