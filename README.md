@@ -172,8 +172,8 @@ The application will:
 ### Button Controls
 
 - **Short Press** (< 1 second): Manual refresh
-- **Double Press** (2 short presses): Affiche les bus suivants jusqu'au prochain refresh automatique
-- **Long Press** (≥ 1 second): Éteint complètement l’écran (un appui le rallume)
+- **Double Press** (2 short presses): Show following buses until next automatic refresh
+- **Long Press** (≥ 1 second): Turn screen fully off (any press turns it back on)
 - **Ctrl+C**: Exit the application
 
 ### Default Pages
