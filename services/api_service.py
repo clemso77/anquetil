@@ -94,8 +94,6 @@ class APIService:
             for d in deliveries:
                 for visit in d.get("MonitoredStopVisit", []) or []:
                     mr = visit.get("MonitoringRef", {})
-                    if (mr.get("value") if isinstance(mr, dict) else mr) != stop_point_ref:
-                        continue
 
                     mvj = visit.get("MonitoredVehicleJourney", {}) or {}
                     call = mvj.get("MonitoredCall", {}) or {}
