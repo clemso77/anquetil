@@ -266,10 +266,11 @@ class Application:
             # Render base page
             image = self.page.render()
             self.tft.display_image(image)
-        except Exception as e:
-            print(f"Error updating display: {e}")
-        finally:
             self.last_frame_ts = time.time()
+        except Exception as e:
+            # Keep cadence aligned by allowing immediate retry on next loop.
+            self.last_frame_ts = time.time() - min_dt
+            print(f"Error updating display: {e}")
 
     def run(self):
         """Main application loop."""
@@ -314,7 +315,7 @@ class Application:
                     frame_interval = 1.0 / self.target_fps
                     elapsed_since_last_frame = time.time() - self.last_frame_ts
                     if elapsed_since_last_frame >= frame_interval:
-                        sleep_duration = 0.001
+                        sleep_duration = min(0.01, frame_interval / 2.0)
                     else:
                         sleep_duration = frame_interval - elapsed_since_last_frame
                     time.sleep(sleep_duration)

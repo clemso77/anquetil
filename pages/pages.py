@@ -13,6 +13,8 @@ from PIL import Image, ImageDraw, ImageFont, ImageSequence
 import config
 from services import DataManager, DataState
 
+BUS_WIDTH_RATIO = 0.58
+
 
 def load_bus_frames(path: str) -> List[Image.Image]:
     """
@@ -89,7 +91,7 @@ class BusPage:
         """Get cached bus frames, loading if necessary."""
         if self._bus_frames is None:
             raw_frames = load_bus_frames(self.bus_image_path)
-            target_w = int(config.DISPLAY_WIDTH * 0.58)
+            target_w = int(config.DISPLAY_WIDTH * BUS_WIDTH_RATIO)
             resized_frames: List[Image.Image] = []
 
             for frame in raw_frames:

@@ -146,7 +146,9 @@ class TFT:
         
         # Convert to RGB565 format (C-optimized in Pillow).
         try:
-            # Prefer explicit big-endian RGB565 when available.
+            # Prefer explicit big-endian RGB565 (R:bits 15-11, G:10-5, B:4-0)
+            # to match the display write order; fallback keeps compatibility
+            # with Pillow builds that may not expose RGB;16B.
             try:
                 pixel_data = image.tobytes("raw", "RGB;16B")
             except Exception:
