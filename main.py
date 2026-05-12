@@ -91,7 +91,7 @@ class Application:
         Fetch bus data and update data manager.
         Called by refresh manager on schedule and manual refresh.
         """
-        if is_auto_refresh and self.show_following_buses:
+        if self.show_following_buses:
             print("Auto-refresh detected - restoring default bus view")
             self._set_show_following_buses(False)
 
