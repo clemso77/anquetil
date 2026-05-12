@@ -111,6 +111,17 @@ class BusPage:
             self._bus_frames = load_bus_frames(self.bus_image_path)
         return self._bus_frames
 
+    def set_bus_image_path(self, bus_image_path: str):
+        """
+        Update the bus image source and reset frame cache.
+        
+        Args:
+            bus_image_path: Path to the new image (PNG or GIF)
+        """
+        if bus_image_path and bus_image_path != self.bus_image_path:
+            self.bus_image_path = bus_image_path
+            self._bus_frames = None
+
     def _is_on_time(self, status: str) -> bool:
         """
         Check if status represents on-time departure.
