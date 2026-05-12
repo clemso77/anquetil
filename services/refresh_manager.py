@@ -26,12 +26,12 @@ class RefreshManager:
         self.refresh_interval_seconds = refresh_interval_seconds
         self._timer: Optional[threading.Timer] = None
         self._is_running = False
-        self._refresh_callback: Optional[Callable[[], None]] = None
+        self._refresh_callback: Optional[Callable[[bool], None]] = None
         self._is_refreshing = False
         self._lock = threading.Lock()
         self._stop_event = threading.Event()
 
-    def set_refresh_callback(self, callback: Callable[[], None]):
+    def set_refresh_callback(self, callback: Callable[[bool], None]):
         """
         Set the callback to execute on each refresh.
         
@@ -40,7 +40,7 @@ class RefreshManager:
         """
         self._refresh_callback = callback
 
-    def _execute_refresh(self):
+    def _execute_refresh(self, is_auto_refresh: bool):
         """Execute the refresh callback if not already refreshing."""
         with self._lock:
             if self._is_refreshing:
@@ -50,7 +50,7 @@ class RefreshManager:
 
         try:
             if self._refresh_callback:
-                self._refresh_callback()
+                self._refresh_callback(is_auto_refresh)
         except Exception as e:
             print(f"Error during refresh: {e}")
         finally:
@@ -64,7 +64,7 @@ class RefreshManager:
 
         def refresh_task():
             if self._is_running:
-                self._execute_refresh()
+                self._execute_refresh(is_auto_refresh=True)
                 self._schedule_next_refresh()
 
         self._timer = threading.Timer(self.refresh_interval_seconds, refresh_task)
@@ -88,7 +88,7 @@ class RefreshManager:
 
         # Immediate refresh if requested
         if immediate_refresh:
-            self._execute_refresh()
+            self._execute_refresh(is_auto_refresh=True)
 
         # Schedule periodic refreshes
         self._schedule_next_refresh()
@@ -114,7 +114,7 @@ class RefreshManager:
         print("Manual refresh triggered")
         
         # Execute refresh in a separate thread to avoid blocking
-        refresh_thread = threading.Thread(target=self._execute_refresh)
+        refresh_thread = threading.Thread(target=self._execute_refresh, kwargs={"is_auto_refresh": False})
         refresh_thread.daemon = True
         refresh_thread.start()
 

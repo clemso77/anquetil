@@ -136,13 +136,14 @@ class DataManager:
         with self._lock:
             return len(self._data) > 0
 
-    def get_formatted_items(self, limit: int = 2) -> List[Dict[str, Any]]:
+    def get_formatted_items(self, limit: int = 2, offset: int = 0) -> List[Dict[str, Any]]:
         """
         Get formatted data items ready for display.
         Calculates wait_minutes dynamically from UTC timestamps on EVERY call.
         
         Args:
             limit: Maximum number of items to return
+            offset: Number of initial items to skip
             
         Returns:
             List of formatted dictionaries with:
@@ -153,8 +154,9 @@ class DataManager:
                 - expected_departure_utc: Original UTC timestamp
         """
         with self._lock:
+            safe_offset = max(0, int(offset))
             items = []
-            for item in self._data[:limit]:
+            for item in self._data[safe_offset:safe_offset + limit]:
                 utc_time = item.get("expected_departure_utc", "")
                 items.append({
                     "wait_minutes": calculate_wait_minutes(utc_time),

@@ -92,6 +92,7 @@ class BusPage:
 
         # Bus frames cache
         self._bus_frames: Optional[List[Image.Image]] = None
+        self.items_offset = 0
 
         self.font_title = ImageFont.load_default(18)
         self.font_huge = ImageFont.load_default(50)
@@ -99,6 +100,10 @@ class BusPage:
         self.font_medium = ImageFont.load_default(18)
         self.font_small = ImageFont.load_default(16)
         self.font_tiny = ImageFont.load_default(12)
+
+    def set_items_offset(self, offset: int):
+        """Set data offset for displayed bus cards."""
+        self.items_offset = max(0, int(offset))
 
     def _get_bus_frames(self) -> List[Image.Image]:
         """Get cached bus frames, loading if necessary."""
@@ -249,7 +254,7 @@ class BusPage:
         draw.text((w - 70, info_y), auto_refresh_text, fill=(120, 120, 140), font=self.font_tiny)
 
         # --- Data cards
-        items = self.data_manager.get_formatted_items(limit=2)
+        items = self.data_manager.get_formatted_items(limit=2, offset=self.items_offset)
 
         card_h = 66
         gap = 10

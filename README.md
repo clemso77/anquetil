@@ -171,8 +171,9 @@ The application will:
 
 ### Button Controls
 
-- **Short Press** (< 1 second): Change to the next page
-- **Long Press** (≥ 1 second): Toggle backlight on/off
+- **Short Press** (< 1 second): Manual refresh
+- **Double Press** (2 short presses): Show following buses until next automatic refresh
+- **Long Press** (≥ 1 second): Turn screen fully off (any press turns it back on)
 - **Ctrl+C**: Exit the application
 
 ### Default Pages

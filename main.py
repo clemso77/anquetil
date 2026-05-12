@@ -58,6 +58,7 @@ class Application:
         # Screen state
         self.screen_on = True
         self.suppress_button_callbacks = False
+        self.show_following_buses = False
         
         # Stop point reference for bus data
         self.stop_point_ref = config.BUS_ID
@@ -79,11 +80,21 @@ class Application:
         print("\nShutdown signal received, cleaning up...")
         self.running = False
 
-    def _fetch_data(self):
+    def _set_show_following_buses(self, enabled: bool):
+        """Enable/disable following buses view (next 2 items)."""
+        self.show_following_buses = bool(enabled)
+        if self.page:
+            self.page.set_items_offset(2 if self.show_following_buses else 0)
+
+    def _fetch_data(self, is_auto_refresh: bool):
         """
         Fetch bus data and update data manager.
         Called by refresh manager on schedule and manual refresh.
         """
+        if is_auto_refresh and self.show_following_buses:
+            print("Auto-refresh detected - restoring default bus view")
+            self._set_show_following_buses(False)
+
         print("Fetching bus data...")
         self.data_manager.set_loading()
         
@@ -91,7 +102,7 @@ class Application:
             # Fetch data from API service
             data = self.api_service.fetch_waiting_times(
                 stop_point_ref=self.stop_point_ref,
-                limit=2,
+                limit=4,
                 timeout=15
             )
             
@@ -127,6 +138,7 @@ class Application:
             # Button callbacks
             self.button.on_short_press = self._on_short_press
             self.button.on_long_press = self._on_long_press
+            self.button.on_double_press = self._on_double_press
 
             # Create the single page (uses data manager, no fetch function)
             print("Creating BusPage...")
@@ -136,6 +148,7 @@ class Application:
                 title="Prochains bus",
                 fps=44,
             )
+            self.page.set_items_offset(0)
 
             # Setup refresh manager
             print("Setting up refresh manager...")
@@ -149,6 +162,7 @@ class Application:
 
             print("Initialization complete!")
             print("Short press: Manual refresh")
+            print("Double press: Show following buses until next auto-refresh")
             print("Long press: Shut down screen")
             print("Any press when screen is off: Restore screen")
             print("Press Ctrl+C to exit")
@@ -200,6 +214,17 @@ class Application:
         self.button.reset_state()
         # Turn off display completely (not just clear, but actually power down)
         self.tft.display_off()
+
+    def _on_double_press(self):
+        """Double short press: show following buses (3rd/4th) temporarily."""
+        if self.suppress_button_callbacks:
+            return
+        if not self.screen_on:
+            return
+
+        print("Double press detected - showing following buses")
+        self._set_show_following_buses(True)
+        self._update_display(force=True)
 
     def _update_display(self, force: bool = False):
         """
