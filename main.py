@@ -158,7 +158,7 @@ class Application:
                 data_manager=self.data_manager,
                 bus_image_path=self._get_current_bus_image_path(),
                 title=self._get_current_title(),
-                fps=44,
+                fps=self.target_fps,
             )
 
             # Setup refresh manager
@@ -307,8 +307,14 @@ class Application:
                 if self.screen_on:
                     self._update_display(force=False)
 
-                # Small sleep to avoid saturating CPU
-                time.sleep(0.01)
+                # Adaptive sleep to avoid busy-looping.
+                # When screen is off, keep lower polling frequency for wake press detection.
+                if not self.screen_on:
+                    time.sleep(0.05)
+                else:
+                    next_frame_ts = self.last_frame_ts + (1.0 / self.target_fps)
+                    sleep_duration = max(0.001, next_frame_ts - time.time())
+                    time.sleep(sleep_duration)
 
         except KeyboardInterrupt:
             print("\nKeyboard interrupt received")

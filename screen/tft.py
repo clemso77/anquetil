@@ -144,17 +144,20 @@ class TFT:
         if image.mode != 'RGB':
             image = image.convert('RGB')
         
-        # Convert to RGB565 format
-        pixels = image.load()
-        pixel_data = []
-        
-        for y in range(self.height):
-            for x in range(self.width):
-                r, g, b = pixels[x, y]
-                # Convert to RGB565
-                rgb565 = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
-                pixel_data.append(rgb565 >> 8)    # High byte
-                pixel_data.append(rgb565 & 0xFF)  # Low byte
+        # Convert to RGB565 format (C-optimized in Pillow).
+        try:
+            pixel_data = image.tobytes("raw", "BGR;16")
+        except Exception:
+            # Fallback conversion path.
+            pixels = image.load()
+            pixel_data = bytearray()
+            for y in range(self.height):
+                for x in range(self.width):
+                    r, g, b = pixels[x, y]
+                    rgb565 = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
+                    pixel_data.append(rgb565 >> 8)
+                    pixel_data.append(rgb565 & 0xFF)
+            pixel_data = bytes(pixel_data)
         
         # Set window to full screen
         self._set_window(0, 0, self.width - 1, self.height - 1)
