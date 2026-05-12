@@ -124,8 +124,7 @@ class BusPage:
 
     def set_title(self, title: str):
         """Update displayed page title."""
-        if title:
-            self.title = title
+        self.title = title
 
     def _is_on_time(self, status: str) -> bool:
         """
