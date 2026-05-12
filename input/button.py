@@ -21,7 +21,7 @@ class Button:
         self.handle = gpio_handle
         self.pin = pin
         self.pressed = False
-        self.press_start_time = 0
+        self.press_start_time = 0.0
         self.last_state = 1  # Pull-up, so high when not pressed
         
         # Configure pin as input with pull-up
@@ -46,9 +46,10 @@ class Button:
             'short', 'double', 'long', or None depending on press type detected
         """
         current_state = lgpio.gpio_read(self.handle, self.pin)
-        current_time = time.time()
+        current_time = time.monotonic()
         
         # Fire pending short press if no second click happened in time
+        # Only fire when button is released to avoid triggering while a second press is in progress.
         if self.pending_short_press_time is not None and current_state == 1:
             elapsed_ms = (current_time - self.pending_short_press_time) * 1000
             if elapsed_ms >= config.BUTTON_DOUBLE_CLICK_MS:
@@ -114,14 +115,14 @@ class Button:
         Returns:
             'short', 'double', 'long', or None if timeout
         """
-        start_time = time.time()
+        start_time = time.monotonic()
         
         while True:
             result = self.update()
             if result:
                 return result
             
-            if timeout and (time.time() - start_time) > timeout:
+            if timeout and (time.monotonic() - start_time) > timeout:
                 return None
             
             time.sleep(0.01)  # Small delay to prevent CPU spinning
