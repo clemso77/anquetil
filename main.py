@@ -107,6 +107,7 @@ class Application:
             # Fetch data from API service
             data = self.api_service.fetch_waiting_times(
                 stop_point_ref=active_stop,
+                # Dataset provides only the next two departures per stop.
                 limit=2,
                 timeout=15
             )
