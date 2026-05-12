@@ -172,7 +172,7 @@ The application will:
 ### Button Controls
 
 - **Short Press** (< 1 second): Manual refresh
-- **Double Press** (2 short presses): Show following buses until next automatic refresh
+- **Double Press** (2 short presses): Switch to alternate stop (and image) until next double press, then refresh immediately
 - **Long Press** (≥ 1 second): Turn screen fully off (any press turns it back on)
 - **Ctrl+C**: Exit the application
 
@@ -215,6 +215,14 @@ BUTTON_LONG_PRESS_MS = 1000  # Long press threshold
 ```python
 BACKLIGHT_PWM_FREQ = 1000    # PWM frequency (Hz)
 BACKLIGHT_DEFAULT_DUTY = 80  # Default brightness (0-100%)
+```
+
+### Bus Data / Alternate Stop
+```python
+BUS_ID = "STIF:StopPoint:Q:7800:"            # Default stop
+BUS_ID_ALTERNATE = "STIF:StopPoint:Q:7800:"  # Stop used after double press
+BUS_IMAGE_PATH = "assets/bus.gif"            # Image for default stop
+BUS_IMAGE_PATH_ALTERNATE = "assets/bus.gif"  # Image for alternate stop
 ```
 
 ## Extending the Project

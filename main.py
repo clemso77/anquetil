@@ -58,10 +58,11 @@ class Application:
         # Screen state
         self.screen_on = True
         self.suppress_button_callbacks = False
-        self.show_following_buses = False
+        self.use_alternate_stop = False
         
         # Stop point reference for bus data
-        self.stop_point_ref = config.BUS_ID
+        self.primary_stop_point_ref = config.BUS_ID
+        self.alternate_stop_point_ref = config.BUS_ID_ALTERNATE
         # Services
         self.api_service = get_api_service()
         self.data_manager = get_data_manager()
@@ -80,29 +81,33 @@ class Application:
         print("\nShutdown signal received, cleaning up...")
         self.running = False
 
-    def _set_show_following_buses(self, enabled: bool):
-        """Enable/disable following buses view (next 2 items)."""
-        self.show_following_buses = bool(enabled)
-        if self.page:
-            self.page.set_items_offset(2 if self.show_following_buses else 0)
+    def _get_current_stop_point_ref(self) -> str:
+        """Return currently selected stop id."""
+        if self.use_alternate_stop:
+            return self.alternate_stop_point_ref
+        return self.primary_stop_point_ref
+
+    def _get_current_bus_image_path(self) -> str:
+        """Return currently selected bus image path."""
+        if self.use_alternate_stop:
+            return config.BUS_IMAGE_PATH_ALTERNATE
+        return config.BUS_IMAGE_PATH
 
     def _fetch_data(self, is_auto_refresh: bool):
         """
         Fetch bus data and update data manager.
         Called by refresh manager on schedule and manual refresh.
         """
-        if self.show_following_buses:
-            print("Auto-refresh detected - restoring default bus view")
-            self._set_show_following_buses(False)
+        active_stop = self._get_current_stop_point_ref()
 
-        print("Fetching bus data...")
+        print(f"Fetching bus data for stop: {active_stop}")
         self.data_manager.set_loading()
         
         try:
             # Fetch data from API service
             data = self.api_service.fetch_waiting_times(
-                stop_point_ref=self.stop_point_ref,
-                limit=4,
+                stop_point_ref=active_stop,
+                limit=2,
                 timeout=15
             )
             
@@ -144,11 +149,10 @@ class Application:
             print("Creating BusPage...")
             self.page = BusPage(
                 data_manager=self.data_manager,
-                bus_image_path="assets/bus.gif",
+                bus_image_path=self._get_current_bus_image_path(),
                 title="Prochains bus",
                 fps=44,
             )
-            self.page.set_items_offset(0)
 
             # Setup refresh manager
             print("Setting up refresh manager...")
@@ -162,7 +166,7 @@ class Application:
 
             print("Initialization complete!")
             print("Short press: Manual refresh")
-            print("Double press: Show following buses until next auto-refresh")
+            print("Double press: Switch stop + image, then refresh")
             print("Long press: Shut down screen")
             print("Any press when screen is off: Restore screen")
             print("Press Ctrl+C to exit")
@@ -216,14 +220,23 @@ class Application:
         self.tft.display_off()
 
     def _on_double_press(self):
-        """Double short press: show following buses (3rd/4th) temporarily."""
+        """Double short press: toggle stop (and image), then refresh."""
         if self.suppress_button_callbacks:
             return
         if not self.screen_on:
             return
 
-        print("Double press detected - showing following buses")
-        self._set_show_following_buses(True)
+        self.use_alternate_stop = not self.use_alternate_stop
+        active_stop = self._get_current_stop_point_ref()
+        print(f"Double press detected - switched to stop: {active_stop}")
+        if self.page:
+            self.page.set_bus_image_path(self._get_current_bus_image_path())
+
+        if self.refresh_manager.is_refreshing():
+            print("Refresh already in progress, waiting for next cycle...")
+            return
+
+        self.refresh_manager.refresh_now()
         self._update_display(force=True)
 
     def _update_display(self, force: bool = False):
