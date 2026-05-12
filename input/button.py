@@ -30,6 +30,8 @@ class Button:
         # Callbacks for press events
         self.on_short_press = None
         self.on_long_press = None
+        self.on_double_press = None
+        self.pending_short_press_time = None
     
     def _is_pressed(self):
         """Check if button is currently pressed (low = pressed with pull-up)"""
@@ -41,11 +43,20 @@ class Button:
         Should be called regularly from main loop
         
         Returns:
-            'short', 'long', or None depending on press type detected
+            'short', 'double', 'long', or None depending on press type detected
         """
         current_state = lgpio.gpio_read(self.handle, self.pin)
         current_time = time.time()
         
+        # Fire pending short press if no second click happened in time
+        if self.pending_short_press_time is not None:
+            elapsed_ms = (current_time - self.pending_short_press_time) * 1000
+            if elapsed_ms >= config.BUTTON_DOUBLE_CLICK_MS:
+                self.pending_short_press_time = None
+                if self.on_short_press:
+                    self.on_short_press()
+                return 'short'
+
         # Detect button press (transition from high to low)
         if current_state == 0 and self.last_state == 1:
             # Button just pressed
@@ -70,14 +81,22 @@ class Button:
                 # Determine press type
                 if press_duration >= config.BUTTON_LONG_PRESS_MS:
                     # Long press
+                    self.pending_short_press_time = None
                     if self.on_long_press:
                         self.on_long_press()
                     return 'long'
                 else:
-                    # Short press
-                    if self.on_short_press:
-                        self.on_short_press()
-                    return 'short'
+                    # Short press candidate (wait briefly to detect double click)
+                    if self.pending_short_press_time is not None:
+                        interval_ms = (current_time - self.pending_short_press_time) * 1000
+                        if interval_ms <= config.BUTTON_DOUBLE_CLICK_MS:
+                            self.pending_short_press_time = None
+                            if self.on_double_press:
+                                self.on_double_press()
+                            return 'double'
+
+                    self.pending_short_press_time = current_time
+                    return None
         
         else:
             # No state change
@@ -93,7 +112,7 @@ class Button:
             timeout: Maximum time to wait in seconds (None = wait forever)
         
         Returns:
-            'short', 'long', or None if timeout
+            'short', 'double', 'long', or None if timeout
         """
         start_time = time.time()
         
@@ -118,6 +137,7 @@ class Button:
         """
         self.pressed = False
         self.press_start_time = 0
+        self.pending_short_press_time = None
         self.last_state = lgpio.gpio_read(self.handle, self.pin)
     
     def cleanup(self):

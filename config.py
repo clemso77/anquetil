@@ -40,6 +40,7 @@ ST7789_COLMOD = 0x3A
 # Button Configuration
 BUTTON_DEBOUNCE_MS = 50      # Debounce time in milliseconds
 BUTTON_LONG_PRESS_MS = 1000  # Long press threshold in milliseconds
+BUTTON_DOUBLE_CLICK_MS = 350  # Max interval between 2 short presses
 
 # Backlight Configuration
 BACKLIGHT_PWM_FREQ = 1000    # PWM frequency in Hz
