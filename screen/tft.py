@@ -146,7 +146,7 @@ class TFT:
         
         # Convert to RGB565 format (C-optimized in Pillow).
         try:
-            pixel_data = image.tobytes("raw", "BGR;16")
+            pixel_data = image.tobytes("raw", "RGB;16")
         except Exception:
             # Fallback conversion path.
             pixels = image.load()

@@ -262,14 +262,13 @@ class Application:
         min_dt = 1.0 / self.target_fps
         if not force and (now - self.last_frame_ts) < min_dt:
             return
-
-        self.last_frame_ts = now
-
         try:
             # Render base page
             image = self.page.render()
             self.tft.display_image(image)
+            self.last_frame_ts = time.time()
         except Exception as e:
+            self.last_frame_ts = time.time()
             print(f"Error updating display: {e}")
 
     def run(self):
@@ -312,8 +311,12 @@ class Application:
                 if not self.screen_on:
                     time.sleep(0.05)
                 else:
-                    next_frame_ts = self.last_frame_ts + (1.0 / self.target_fps)
-                    sleep_duration = max(0.001, next_frame_ts - time.time())
+                    frame_interval = 1.0 / self.target_fps
+                    elapsed_since_last_frame = time.time() - self.last_frame_ts
+                    if elapsed_since_last_frame >= frame_interval:
+                        sleep_duration = 0.005
+                    else:
+                        sleep_duration = frame_interval - elapsed_since_last_frame
                     time.sleep(sleep_duration)
 
         except KeyboardInterrupt:

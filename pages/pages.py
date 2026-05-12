@@ -184,7 +184,7 @@ class BusPage:
         """
         w, h = config.DISPLAY_WIDTH, config.DISPLAY_HEIGHT  # 240 x 280
 
-        img = Image.new("RGBA", (w, h), (255, 255, 255, 255))
+        img = Image.new("RGB", (w, h), (255, 255, 255))
         draw = ImageDraw.Draw(img)
         header_y=10
         header_h=50        
@@ -241,7 +241,7 @@ class BusPage:
         bus_y = bus_area_top + (bus_area_h - bus_rot.height) // 2 + bounce - 12  # Additional upward adjustment
 
         # Alpha composite
-        img.alpha_composite(bus_rot, dest=(bus_x, bus_y))
+        img.paste(bus_rot, (bus_x, bus_y), bus_rot)
         draw = ImageDraw.Draw(img)
 
         # --- Info bar (last update + auto-refresh)
@@ -394,4 +394,4 @@ class BusPage:
                     draw.text((left + PAD_X + 40, y1 + 22), "min", fill=(120, 120, 130), font=self.font_small)
 
 
-        return img.convert("RGB")
+        return img
