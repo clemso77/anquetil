@@ -8,11 +8,12 @@ Now uses centralized data management without direct fetch calls.
 import time
 import math
 from typing import List, Optional
-from datetime import datetime
 
 from PIL import Image, ImageDraw, ImageFont, ImageSequence
 import config
 from services import DataManager, DataState
+
+BUS_WIDTH_RATIO = 0.58
 
 
 def load_bus_frames(path: str) -> List[Image.Image]:
@@ -37,25 +38,6 @@ def load_bus_frames(path: str) -> List[Image.Image]:
     if not frames:
         frames = [img.convert("RGBA")]
     return frames
-
-
-def draw_vertical_gradient(draw: ImageDraw.ImageDraw, w: int, h: int, top, bottom):
-    """
-    Draw a vertical gradient from top to bottom.
-    
-    Args:
-        draw: ImageDraw object
-        w: Width in pixels
-        h: Height in pixels
-        top: Top color RGB tuple
-        bottom: Bottom color RGB tuple
-    """
-    for y in range(h):
-        t = y / max(1, (h - 1))
-        r = int(top[0] + (bottom[0] - top[0]) * t)
-        g = int(top[1] + (bottom[1] - top[1]) * t)
-        b = int(top[2] + (bottom[2] - top[2]) * t)
-        draw.line([(0, y), (w, y)], fill=(r, g, b))
 
 
 class BusPage:
@@ -108,7 +90,18 @@ class BusPage:
     def _get_bus_frames(self) -> List[Image.Image]:
         """Get cached bus frames, loading if necessary."""
         if self._bus_frames is None:
-            self._bus_frames = load_bus_frames(self.bus_image_path)
+            raw_frames = load_bus_frames(self.bus_image_path)
+            target_w = int(config.DISPLAY_WIDTH * BUS_WIDTH_RATIO)
+            resized_frames: List[Image.Image] = []
+
+            for frame in raw_frames:
+                ratio = target_w / frame.width
+                target_h = int(frame.height * ratio)
+                resized_frames.append(
+                    frame.resize((target_w, target_h), resample=Image.Resampling.LANCZOS)
+                )
+
+            self._bus_frames = resized_frames
         return self._bus_frames
 
     def set_bus_image_path(self, bus_image_path: str):
@@ -235,16 +228,11 @@ class BusPage:
         bus_src = frames[frame_index]
 
         # --- Bus size (centered)
-        target_w = int(w * 0.58)
-        ratio = target_w / bus_src.width
-        target_h = int(bus_src.height * ratio)
-        bus_scaled = bus_src.resize((target_w, target_h), resample=Image.Resampling.LANCZOS)
-
         # "Dance" animation
         bounce = int(7 * math.sin(t * 4.2))
         tilt = 5 * math.sin(t * 3.6 + 0.5)
         sway = int(5 * math.sin(t * 2.1))
-        bus_rot = bus_scaled.rotate(tilt, resample=Image.Resampling.BICUBIC, expand=True)
+        bus_rot = bus_src.rotate(tilt, resample=Image.Resampling.BICUBIC, expand=True)
 
         # --- Bus position (moved up with negative margin effect)
         bus_area_top = header_y + header_h + 5
@@ -255,9 +243,7 @@ class BusPage:
         bus_y = bus_area_top + (bus_area_h - bus_rot.height) // 2 + bounce - 12  # Additional upward adjustment
 
         # Alpha composite
-        base = img.convert("RGBA")
-        base.alpha_composite(bus_rot, dest=(bus_x, bus_y))
-        img = base.convert("RGB")
+        img.paste(bus_rot, (bus_x, bus_y), bus_rot)
         draw = ImageDraw.Draw(img)
 
         # --- Info bar (last update + auto-refresh)

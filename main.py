@@ -158,7 +158,7 @@ class Application:
                 data_manager=self.data_manager,
                 bus_image_path=self._get_current_bus_image_path(),
                 title=self._get_current_title(),
-                fps=44,
+                fps=self.target_fps,
             )
 
             # Setup refresh manager
@@ -262,14 +262,14 @@ class Application:
         min_dt = 1.0 / self.target_fps
         if not force and (now - self.last_frame_ts) < min_dt:
             return
-
-        self.last_frame_ts = now
-
         try:
             # Render base page
             image = self.page.render()
             self.tft.display_image(image)
+            self.last_frame_ts = time.time()
         except Exception as e:
+            # Keep cadence aligned by allowing immediate retry on next loop.
+            self.last_frame_ts = time.time() - min_dt
             print(f"Error updating display: {e}")
 
     def run(self):
@@ -307,8 +307,18 @@ class Application:
                 if self.screen_on:
                     self._update_display(force=False)
 
-                # Small sleep to avoid saturating CPU
-                time.sleep(0.01)
+                # Adaptive sleep to avoid busy-looping.
+                # When screen is off, keep lower polling frequency for wake press detection.
+                if not self.screen_on:
+                    time.sleep(0.05)
+                else:
+                    frame_interval = 1.0 / self.target_fps
+                    elapsed_since_last_frame = time.time() - self.last_frame_ts
+                    if elapsed_since_last_frame >= frame_interval:
+                        sleep_duration = min(0.01, frame_interval / 2.0)
+                    else:
+                        sleep_duration = frame_interval - elapsed_since_last_frame
+                    time.sleep(sleep_duration)
 
         except KeyboardInterrupt:
             print("\nKeyboard interrupt received")
