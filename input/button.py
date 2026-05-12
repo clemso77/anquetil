@@ -49,7 +49,7 @@ class Button:
         current_time = time.time()
         
         # Fire pending short press if no second click happened in time
-        if self.pending_short_press_time is not None:
+        if self.pending_short_press_time is not None and current_state == 1:
             elapsed_ms = (current_time - self.pending_short_press_time) * 1000
             if elapsed_ms >= config.BUTTON_DOUBLE_CLICK_MS:
                 self.pending_short_press_time = None
@@ -89,7 +89,7 @@ class Button:
                     # Short press candidate (wait briefly to detect double click)
                     if self.pending_short_press_time is not None:
                         interval_ms = (current_time - self.pending_short_press_time) * 1000
-                        if interval_ms <= config.BUTTON_DOUBLE_CLICK_MS:
+                        if 0 <= interval_ms <= config.BUTTON_DOUBLE_CLICK_MS:
                             self.pending_short_press_time = None
                             if self.on_double_press:
                                 self.on_double_press()
