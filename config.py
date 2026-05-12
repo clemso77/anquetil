@@ -50,6 +50,8 @@ BACKLIGHT_DEFAULT_DUTY = 80  # Default brightness (0-100%)
 REFRESH_INTERVAL_SECONDS = 80  # Auto-refresh interval for bus data
 BUS_ID = "STIF:StopPoint:Q:7800:"
 BUS_ID_ALTERNATE = "STIF:StopPoint:Q:493533:"  # Stop used after double click (set a different stop ID)
+BUS_TITLE = "Prochains bus"
+BUS_TITLE_ALTERNATE = "Prochains RER"
 
 # Bus image per stop view
 BUS_IMAGE_PATH = "assets/bus.gif"

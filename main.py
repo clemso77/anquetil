@@ -93,6 +93,12 @@ class Application:
             return config.BUS_IMAGE_PATH_ALTERNATE
         return config.BUS_IMAGE_PATH
 
+    def _get_current_title(self) -> str:
+        """Return currently selected page title."""
+        if self.use_alternate_stop:
+            return config.BUS_TITLE_ALTERNATE
+        return config.BUS_TITLE
+
     def _fetch_data(self, is_auto_refresh: bool):
         """
         Fetch bus data and update data manager.
@@ -151,7 +157,7 @@ class Application:
             self.page = BusPage(
                 data_manager=self.data_manager,
                 bus_image_path=self._get_current_bus_image_path(),
-                title="Prochains bus",
+                title=self._get_current_title(),
                 fps=44,
             )
 
@@ -232,6 +238,7 @@ class Application:
         print(f"Double press detected - switched to stop: {active_stop}")
         if self.page:
             self.page.set_bus_image_path(self._get_current_bus_image_path())
+            self.page.set_title(self._get_current_title())
 
         if self.refresh_manager.is_refreshing():
             print("Refresh already in progress, waiting for next cycle...")
