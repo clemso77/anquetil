@@ -122,6 +122,10 @@ class BusPage:
             self.bus_image_path = bus_image_path
             self._bus_frames = None
 
+    def set_title(self, title: str):
+        """Update displayed page title."""
+        self.title = title
+
     def _is_on_time(self, status: str) -> bool:
         """
         Check if status represents on-time departure.

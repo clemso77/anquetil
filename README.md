@@ -172,7 +172,7 @@ The application will:
 ### Button Controls
 
 - **Short Press** (< 1 second): Manual refresh
-- **Double Press** (2 short presses): Switch to alternate stop (and image) until next double press, then refresh immediately
+- **Double Press** (2 short presses): Switch to alternate stop (and image/title) until next double press, then refresh immediately
 - **Long Press** (≥ 1 second): Turn screen fully off (any press turns it back on)
 - **Ctrl+C**: Exit the application
 
@@ -221,6 +221,8 @@ BACKLIGHT_DEFAULT_DUTY = 80  # Default brightness (0-100%)
 ```python
 BUS_ID = "STIF:StopPoint:Q:7800:"            # Default stop
 BUS_ID_ALTERNATE = "STIF:StopPoint:Q:7800:"  # Stop used after double press
+BUS_TITLE = "Prochains bus"                  # Title for default stop
+BUS_TITLE_ALTERNATE = "Prochains RER"        # Title for alternate stop
 BUS_IMAGE_PATH = "assets/bus.gif"            # Image for default stop
 BUS_IMAGE_PATH_ALTERNATE = "assets/bus.gif"  # Image for alternate stop
 ```
