@@ -1,29 +1,12 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
+# Build output
+/anquetil
 
-# Distribution / packaging
-.eggs/
-*.egg-info/
-*.egg
-
-# IDEs
+# Editors / OS
 .vscode/
 .idea/
 *.swp
-*.swo
 *~
-
-# OS
 .DS_Store
-Thumbs.db
 
-# Project specific
-*.log
-
-# Backup files
-*.bak
-*_old.py
+# Local service file (contains the API key)
+anquetil.service
