@@ -1,0 +1,5 @@
+échauffement                 CPU/req=  13.8 ms  durée/req=  143 ms  reçu/req=  5645 o  envoyé/req= 1023 o
+nouvelle conn + gzip (actuel) CPU/req=   9.0 ms  durée/req=   78 ms  reçu/req=  7570 o  envoyé/req= 1844 o
+nouvelle conn, sans gzip     CPU/req=   9.0 ms  durée/req=   81 ms  reçu/req=  9277 o  envoyé/req= 1820 o
+conn réutilisée + gzip       CPU/req=   0.8 ms  durée/req=   80 ms  reçu/req=  3753 o  envoyé/req=  297 o
+conn réutilisée, sans gzip   CPU/req=   0.6 ms  durée/req=  124 ms  reçu/req=  5489 o  envoyé/req=  274 o

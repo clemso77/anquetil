@@ -159,16 +159,32 @@ func (hw *Hardware) ButtonPressed() bool {
 	return C.lgGpioRead(hw.chip, pinButton) == 0
 }
 
-// Close puts the screen to sleep, turns off the backlight and releases everything.
-func (hw *Hardware) Close() {
+// Sleep turns off the backlight and puts the screen in sleep mode.
+func (hw *Hardware) Sleep() {
+	C.lgTxPwm(hw.chip, pinBL, 0, 0, 0, 0) // frequency 0 stops the PWM
+	C.lgGpioWrite(hw.chip, pinBL, 0)
 	if hw.spi != nil {
 		hw.command(cmdDISPOFF)
 		time.Sleep(10 * time.Millisecond)
 		hw.command(cmdSLPIN)
 		time.Sleep(120 * time.Millisecond) // datasheet: 120ms after SLPIN
+	}
+}
+
+// Wake brings the screen out of sleep mode and turns the backlight back on.
+func (hw *Hardware) Wake() {
+	hw.command(cmdSLPOUT)
+	time.Sleep(120 * time.Millisecond) // datasheet: 120ms after SLPOUT
+	hw.command(cmdDISPON)
+	time.Sleep(10 * time.Millisecond)
+	C.lgTxPwm(hw.chip, pinBL, backlightFreq, backlightDuty, 0, 0)
+}
+
+// Close puts the screen to sleep, turns off the backlight and releases everything.
+func (hw *Hardware) Close() {
+	hw.Sleep()
+	if hw.spi != nil {
 		hw.spi.Close()
 	}
-	C.lgTxPwm(hw.chip, pinBL, 0, 0, 0, 0) // frequency 0 stops the PWM
-	C.lgGpioWrite(hw.chip, pinBL, 0)
 	C.lgGpiochipClose(hw.chip)
 }

@@ -1,0 +1,5 @@
+Coût CPU d'une image, version Python (banc hors matériel : GPIO/SPI simulés, 20 images)
+py_20f914e (version en service jusqu'au 28/10/2026) : rendu=7.4 ms/image  conversion+envoi=21.6 ms/image  total=29.0 ms
+Go (ce dépôt, test unitaire de rendu)               : rendu=3.5 ms/image (conversion RGB565 non incluse)
+
+Historique `ps` du service Python avant arrêt : 21055 min CPU sur 38 j 0 h -> 38,4 % d'un cœur en moyenne.

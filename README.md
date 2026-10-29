@@ -72,3 +72,7 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now anquetil
 journalctl -u anquetil -f      # logs
 ```
+
+## Étude énergétique
+
+Voir [`etude/RAPPORT.md`](etude/RAPPORT.md) : mesures de consommation, outils et résultats.
