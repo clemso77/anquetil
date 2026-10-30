@@ -46,11 +46,14 @@ func pmicRead() (string, error) {
 
 var railRe = regexp.MustCompile(`(\S+)_([AV]) (?:current|volt)\(\d+\)=([\d.]+)`)
 
-// power renvoie la puissance totale (somme V×I de tous les rails) et celle du cœur CPU.
-func power() (total, core float64, err error) {
+// rails suivis individuellement dans le CSV, en plus du total et du cœur CPU.
+var rails = []string{"3V7_WL_SW", "DDR_VDD2", "0V8_SW", "1V1_SYS", "1V8_SYS", "3V3_SYS"}
+
+// power renvoie la puissance totale (somme V×I de tous les rails), celle du cœur CPU et celle de chaque rail.
+func power() (total, core float64, parRail map[string]float64, err error) {
 	s, err := pmicRead()
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, nil, err
 	}
 	amps, volts := map[string]float64{}, map[string]float64{}
 	for _, m := range railRe.FindAllStringSubmatch(s, -1) {
@@ -61,10 +64,12 @@ func power() (total, core float64, err error) {
 			volts[m[1]] = v
 		}
 	}
+	parRail = map[string]float64{}
 	for rail, a := range amps {
-		total += a * volts[rail]
+		parRail[rail] = a * volts[rail]
+		total += parRail[rail]
 	}
-	return total, amps["VDD_CORE"] * volts["VDD_CORE"], nil
+	return total, parRail["VDD_CORE"], parRail, nil
 }
 
 func fields(path string) []string {
@@ -157,11 +162,18 @@ func main() {
 	if *csvPath != "" {
 		csv = must(os.Create(*csvPath))
 		defer csv.Close()
-		fmt.Fprintln(csv, "t,p_total_w,p_core_w,app_cpu_pct,sys_cpu_pct,app_ctx_s,wifi_o_s,freq_mhz,temp_c")
+		fmt.Fprint(csv, "t,p_total_w,p_core_w,app_cpu_pct,sys_cpu_pct,app_ctx_s,wifi_o_s,freq_mhz,temp_c")
+		for _, r := range rails {
+			fmt.Fprintf(csv, ",p_%s_w", strings.ToLower(r))
+		}
+		fmt.Fprintln(csv)
 	}
 
 	names := []string{"P totale PMIC (W)", "P cœur CPU (W)", "CPU app (% cœur)", "CPU système (% cœur)",
 		"Réveils app (/s)", "Trafic Wi-Fi (o/s)", "Fréquence (MHz)", "Température (°C)"}
+	for _, r := range rails {
+		names = append(names, "P "+r+" (W)")
+	}
 	stats := make([]stat, len(names))
 
 	cpu0, ctx0, wifi0 := procTicks(*pid), ctxSwitches(*pid), wifiBytes()
@@ -173,7 +185,7 @@ func main() {
 		tot1, idle1 := sysTicks()
 		t1 := time.Now()
 		dt := t1.Sub(t0).Seconds()
-		pTot, pCore, err := power()
+		pTot, pCore, parRail, err := power()
 		if err != nil {
 			log.Fatalf("lecture PMIC : %v", err)
 		}
@@ -185,6 +197,9 @@ func main() {
 			float64(wifi1-wifi0) / dt,
 			float64(readInt("/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq")) / 1000,
 			float64(readInt("/sys/class/thermal/thermal_zone0/temp")) / 1000,
+		}
+		for _, r := range rails {
+			row = append(row, parRail[r])
 		}
 		for i, x := range row {
 			stats[i].add(x)

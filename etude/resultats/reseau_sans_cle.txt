@@ -1,0 +1,8 @@
+Banc lancé SANS clé API (réponses 401 de 41 o) : seuls les coûts de connexion (TCP, TLS, en-têtes) sont représentatifs.
+échauffement                       CPU/req=  12.9 ms  durée/req=   60 ms  reçu/req=  4443 o  envoyé/req=  991 o  (HTTP/1.1)
+nouvelle conn + gzip (actuel)      CPU/req=   8.9 ms  durée/req=   63 ms  reçu/req=  6393 o  envoyé/req= 1812 o  (HTTP/1.1)
+nouvelle conn, sans gzip           CPU/req=   8.9 ms  durée/req=   54 ms  reçu/req=  6390 o  envoyé/req= 1789 o  (HTTP/1.1)
+nouvelle conn + gzip + reprise TLS CPU/req=   3.3 ms  durée/req=   44 ms  reçu/req=  4366 o  envoyé/req= 2053 o  (HTTP/1.1 repris)
+conn réutilisée + gzip             CPU/req=   0.6 ms  durée/req=   29 ms  reçu/req=  2629 o  envoyé/req=  265 o  (HTTP/1.1)
+conn réutilisée, sans gzip         CPU/req=   0.6 ms  durée/req=   26 ms  reçu/req=  2629 o  envoyé/req=  242 o  (HTTP/1.1)
+conn réutilisée + gzip, HTTP/2     CPU/req=   0.6 ms  durée/req=   26 ms  reçu/req=  1045 o  envoyé/req=   97 o  (HTTP/2.0)

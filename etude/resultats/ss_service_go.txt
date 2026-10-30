@@ -1,0 +1,11 @@
+Connexion du service anquetil (Go, binaire du 30/10 14:04) vers PRIM, relevée avec ss -tni toutes les 10 s
+Même socket 192.168.1.137:59142 -> 104.18.32.19:443 de 14:39:29 à 14:42:38 (> 2 rafraîchissements de 80 s)
+14:41:28 bytes_received=64355
+14:41:38 bytes_received=65608   (+1253 o : un rafraîchissement complet, en-têtes + corps gzip)
+14:42:38 bytes_received=65608
+
+Après correctif api.go (binaire du 30/10 14:39, service relancé à 14:45:27), relevé de 14:45:41 à 14:48:41
+Même socket 192.168.1.137:40568 -> 172.64.155.237:443 pendant tout le relevé
+14:45:41 bytes_received=6868    (1re requête : poignée de main TCP + TLS + réponse)
+14:46:51 bytes_received=8121    (+1253 o)
+14:48:11 bytes_received=10994   (+2873 o)

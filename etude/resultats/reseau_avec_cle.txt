@@ -1,0 +1,11 @@
+Banc lancé AVEC clé API (réponses 200), Wi-Fi, 30 requêtes par stratégie (30/10/2026).
+échauffement                       CPU/req=  12.3 ms  durée/req=   95 ms  reçu/req=  5756 o  envoyé/req= 1023 o  (HTTP/1.1)
+nouvelle conn + gzip (actuel)      CPU/req=   9.0 ms  durée/req=  133 ms  reçu/req=  7717 o  envoyé/req= 1844 o  (HTTP/1.1)
+nouvelle conn, sans gzip           CPU/req=   9.2 ms  durée/req=   81 ms  reçu/req=  9433 o  envoyé/req= 1820 o  (HTTP/1.1)
+nouvelle conn + gzip + reprise TLS CPU/req=   3.4 ms  durée/req=  128 ms  reçu/req=  5684 o  envoyé/req= 2084 o  (HTTP/1.1 repris)
+conn réutilisée + gzip             CPU/req=   0.8 ms  durée/req=   58 ms  reçu/req=  3926 o  envoyé/req=  297 o  (HTTP/1.1)
+conn réutilisée, sans gzip         CPU/req=   0.7 ms  durée/req=   78 ms  reçu/req=  5631 o  envoyé/req=  274 o  (HTTP/1.1)
+conn réutilisée + gzip, HTTP/2     CPU/req=   0.9 ms  durée/req=   79 ms  reçu/req=  2165 o  envoyé/req=  103 o  (HTTP/2.0)
+R5 ETag="" Last-Modified="" Cache-Control="no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
+R6 sans filtre : 2392 o, passages par ligne map[STIF:Line::C01142::2]
+R6 LineRef=STIF:Line::C01142: -> 200 OK, 2392 o

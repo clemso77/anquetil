@@ -1,0 +1,7 @@
+Test -pause, sans clé API (réponses 401) : la connexion survit-elle à l'inactivité ? (30/10/2026)
+R2 HTTP/1.1, pause 1m20s : connexion réutilisée = true
+R2 HTTP/2.0, pause 1m20s : connexion réutilisée = true
+R2 HTTP/1.1, pause 30s : connexion réutilisée = true
+R2 HTTP/2.0, pause 30s : connexion réutilisée = true
+R2 HTTP/1.1, pause 10s : connexion réutilisée = true
+R2 HTTP/2.0, pause 10s : connexion réutilisée = true

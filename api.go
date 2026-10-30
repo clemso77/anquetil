@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"sort"
@@ -63,7 +64,11 @@ func fetchDepartures(apiKey, stopRef string, limit int) ([]Departure, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		// Drain the body so the connection goes back to the pool (no new TLS handshake next time).
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+	}()
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("HTTP %s", resp.Status)
 	}
